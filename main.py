@@ -17,7 +17,7 @@ my_credentials = {
     "type": "service_account",
     "project_id": "common-health-app",
     "private_key_id": os.getenv("PRIVATE_KEY_ID"),
-    "private_key": os.getenv("PRIVATE_KEY").replace(r'\n', '\n'),  # CHANGE HERE
+    "private_key": os.getenv("PRIVATE_KEY_G").replace(r'\n', '\n'),  # CHANGE HERE
     "client_email": os.getenv("CLIENT_EMAIL"),
     "client_id": os.getenv("CLIENT_ID"),
     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
