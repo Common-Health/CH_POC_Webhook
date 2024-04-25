@@ -16,7 +16,7 @@ load_dotenv()
 
 json_config = os.getenv('JSON_CONFIG')
 db_url=os.getenv('DB_URL')
-cred = credentials.Certificate(json_config)
+cred = credentials.Certificate(json.loads(json_config))
 firebase_admin.initialize_app(cred, {
     'databaseURL': db_url
 })
