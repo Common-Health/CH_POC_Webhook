@@ -1,7 +1,7 @@
 import functions_framework
 from flask import jsonify, request
 import firebase_admin
-from firebase_admin import credentials, db
+from firebase_admin import credentials, db, auth
 import base64
 from Crypto.Util.Padding import pad
 from dotenv import load_dotenv
@@ -16,7 +16,7 @@ load_dotenv()
 
 json_config = os.getenv('JSON_CONFIG')
 db_url=os.getenv('DB_URL')
-cred = credentials.Certificate(json.loads(json_config))
+cred = credentials.Certificate(json_config)
 firebase_admin.initialize_app(cred, {
     'databaseURL': db_url
 })
@@ -72,6 +72,17 @@ def check_payment_status():
             return jsonify({"error": str(e)}), 500
     else:
         return jsonify({"error": "Method not allowed"}), 405
+
+@app.route('/update_phone', methods=['POST'])
+def update_phone():
+    user_id = request.json.get('userId1')
+    new_phone = request.json.get('newPhoneNumber')
+
+    try:
+        user = auth.update_user(user_id, phone_number=new_phone)
+        return {'message': f'Successfully updated phone number for user {user.uid}'}, 200
+    except Exception as e:
+        return {'error': str(e)}, 400
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
