@@ -13,10 +13,20 @@ from dotenv import load_dotenv
 
 
 load_dotenv()
-
-json_config = os.getenv('JSON_CONFIG')
+my_credentials = {
+    "type": "service_account",
+    "project_id": "common-health-app",
+    "private_key_id": os.getenv("PRIVATE_KEY_ID"),
+    "private_key": os.getenv("PRIVATE_KEY").replace(r'\n', '\n'),  # CHANGE HERE
+    "client_email": os.getenv("CLIENT_EMAIL"),
+    "client_id": os.getenv("CLIENT_ID"),
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": os.getenv("AUTH_PROVIDER_X509_CERT_URL"),
+    "client_x509_cert_url": os.getenv("CLIENT_X509_CERT_URL")
+}
 db_url=os.getenv('DB_URL')
-cred = credentials.Certificate(json.loads(json_config))
+cred = credentials.Certificate(my_credentials)
 firebase_admin.initialize_app(cred, {
     'databaseURL': db_url
 })
