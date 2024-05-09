@@ -1,7 +1,7 @@
 import functions_framework
 from flask import jsonify, request
 import firebase_admin
-from firebase_admin import credentials, db, auth
+from firebase_admin import credentials, db, auth, messaging
 import base64
 from Crypto.Util.Padding import pad
 from dotenv import load_dotenv
@@ -10,7 +10,7 @@ import os
 import json
 from flask import Flask, request, redirect, jsonify
 from dotenv import load_dotenv
-
+from helpers.salesforce_access import find_user_via_opportunity_id, create_payment_history
 
 load_dotenv()
 my_credentials = {
@@ -57,6 +57,19 @@ class PrpCrypt(object):
         msg = aes.decrypt(res).decode("utf8")
         return self.unpad(msg)
     
+def send_fcm_notification(token):
+    message = messaging.Message(
+        token=token,
+        notification=messaging.Notification(
+            title='Hello!',
+            body='This is an FCM notification message!'
+        )
+    )
+
+    # Send a message to the device corresponding to the provided token
+    response = messaging.send(message)
+    print('Successfully sent message:', response)
+    
 @app.route('/api/check_payment', methods=['POST'])
 def check_payment_status():
     if request.method == 'POST':
@@ -76,6 +89,18 @@ def check_payment_status():
             ref = db.reference('/customers')
             customer_ref = ref.child(customer_name)
             customer_ref.set(result_json)
+
+            opportunity_id = result_json.get('merchantOrderId')
+            method_name = result_json.get('methodName')
+            provider_name = result_json.get('providerName')
+            total_amount = int(result_json.get('totalAmount'))
+            transaction_id = result_json.get('transactionId')
+            status = result_json.get('transactionStatus')
+
+            fcm_token = find_user_via_opportunity_id(opportunity_id)
+            create_payment_history(opportunity_id,method_name,provider_name,total_amount, transaction_id,status)
+
+            send_fcm_notification(fcm_token)
 
             return jsonify(result_json), 200
         except Exception as e:
