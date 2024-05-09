@@ -12,7 +12,7 @@ sf = Salesforce(username=username, password=password, security_token=security_to
 
 def find_user_via_opportunity_id(opportunity_id):
     query = f"""
-    SELECT Account.FCM_Token__c
+    SELECT AccountId.FCM_Token__c
     FROM Opportunity
     WHERE Id = '{opportunity_id}'
     """
