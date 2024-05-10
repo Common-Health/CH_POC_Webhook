@@ -17,7 +17,7 @@ my_credentials = {
     "type": "service_account",
     "project_id": "common-health-app",
     "private_key_id": os.getenv("PRIVATE_KEY_ID"),
-    "private_key": os.getenv("PRIVATE_KEY_G").replace(r'\n', '\n'),  # CHANGE HERE
+    "private_key": os.getenv("PRIVATE_KEY_G").replace(r'\n', '\n'),
     "client_email": os.getenv("CLIENT_EMAIL"),
     "client_id": os.getenv("CLIENT_ID"),
     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
@@ -26,7 +26,7 @@ my_credentials = {
     "client_x509_cert_url": os.getenv("CLIENT_X509_CERT_URL")
 }
 db_url=os.getenv('DB_URL')
-cred = credentials.Certificate(my_credentials)
+cred= credentials.Certificate(my_credentials)
 firebase_admin.initialize_app(cred, {
     'databaseURL': db_url
 })
@@ -57,13 +57,21 @@ class PrpCrypt(object):
         msg = aes.decrypt(res).decode("utf8")
         return self.unpad(msg)
     
-def send_fcm_notification(token):
+def send_fcm_notification(token, order_id, status):
+    if status.lower() == 'success':
+        pay_status= "successful. Thank you for choosing Common Health."
+    else:
+        pay_status = "not successful."
     message = messaging.Message(
         token=token,
         notification=messaging.Notification(
-            title='Hello!',
-            body='This is an FCM notification message!'
-        )
+            title='Payment Update',
+            body=f'Your payment for your order in Common Health is {pay_status}'
+        ),
+        data={
+            "orderId": order_id,
+            "action": "redirect_to_orders"
+        }
     )
 
     # Send a message to the device corresponding to the provided token
@@ -100,7 +108,7 @@ def check_payment_status():
             fcm_token = find_user_via_opportunity_id(opportunity_id)
             create_payment_history(opportunity_id,method_name,provider_name,total_amount, transaction_id,status)
 
-            send_fcm_notification(fcm_token)
+            send_fcm_notification(fcm_token,opportunity_id,status)
 
             return jsonify(result_json), 200
         except Exception as e:
