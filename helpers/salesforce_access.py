@@ -69,3 +69,20 @@ def create_payment_history(opportunity_id, method_name, provider_name, total_amo
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+def update_salesforce(shopify_id, price, total_inventory):
+    try:
+        # Query Salesforce for the record to update
+        query = f"SELECT Id FROM Inventory__c WHERE Id__c = '{shopify_id}'"
+        results = sf.query(query)
+        if results['totalSize'] > 0:
+            record_id = results['records'][0]['Id']
+            sf.Inventory__c.update(record_id, {
+                'Price__c': price,
+                'Total_Inventory__c': total_inventory
+            })
+            print(f"Updated Salesforce record ID {record_id}")
+        else:
+            print("No matching Salesforce record found")
+    except Exception as e:
+        print(f"Failed to update Salesforce: {e}")

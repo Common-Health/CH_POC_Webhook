@@ -10,7 +10,7 @@ import os
 import json
 from flask import Flask, request, redirect, jsonify
 from dotenv import load_dotenv
-from helpers.salesforce_access import find_user_via_opportunity_id, create_payment_history
+from helpers.salesforce_access import find_user_via_opportunity_id, create_payment_history, update_salesforce
 
 load_dotenv()
 my_credentials = {
@@ -126,6 +126,21 @@ def update_phone():
         return {'message': f'Successfully updated phone number for user {user.uid}'}, 200
     except Exception as e:
         return {'error': str(e)}, 400
+
+@app.route('/webhook/shopify/product-update', methods=['POST'])
+def handle_product_update():
+    data = request.json
+    print("Received webhook: ", data)
+    
+    # Assuming the product ID and relevant fields are in the data
+    shopify_id = data['id']
+    price = data['variants'][0]['price']
+    total_inventory = sum(variant['inventory_quantity'] for variant in data['variants'])
+
+    # Update Salesforce
+    update_salesforce(shopify_id, price, total_inventory)
+    
+    return jsonify(success=True), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
