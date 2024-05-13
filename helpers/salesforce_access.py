@@ -82,7 +82,10 @@ def update_salesforce(shopify_id, price, total_inventory):
                 'Total_Inventory__c': total_inventory
             })
             print(f"Updated Salesforce record ID {record_id}")
+            return True
         else:
             print("No matching Salesforce record found")
+            return False
     except Exception as e:
         print(f"Failed to update Salesforce: {e}")
+        return False

@@ -144,15 +144,23 @@ def handle_product_update():
     if not verified:
         abort(401)
 
-    json_data = request.json
-    shopify_id = json_data['id']
-    price = json_data['variants'][0]['price']
-    total_inventory = sum(variant['inventory_quantity'] for variant in json_data['variants'])
+    # Attempt to parse JSON data
+    try:
+        json_data = request.json
+        shopify_id = str(json_data['id'])  # Ensure the ID is a string if needed
+        price = json_data['variants'][0]['price']
+        total_inventory = sum(variant['inventory_quantity'] for variant in json_data['variants'])
+        print(f"Shopify ID: {shopify_id}, Price: {price}, Total Inventory: {total_inventory}")
+    except Exception as e:
+        print(f"Error parsing JSON or extracting data: {e}")
+        abort(400)
 
     # Update Salesforce after verification
-    update_salesforce(shopify_id, price, total_inventory)
-
-    return jsonify(success=True), 200
+    update_success = update_salesforce(shopify_id, price, total_inventory)
+    if update_success:
+        return jsonify(success=True), 200
+    else:
+        return jsonify(success=False, error="Failed to update Salesforce"), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
