@@ -1,11 +1,14 @@
 import functions_framework
-from flask import jsonify, request
+from flask import jsonify, request, abort
 import firebase_admin
 from firebase_admin import credentials, db, auth, messaging
 import base64
 from Crypto.Util.Padding import pad
 from dotenv import load_dotenv
 from Crypto.Cipher import AES
+import hmac
+import hashlib
+import basehash
 import os
 import json
 from flask import Flask, request, redirect, jsonify
@@ -13,6 +16,7 @@ from dotenv import load_dotenv
 from helpers.salesforce_access import find_user_via_opportunity_id, create_payment_history, update_salesforce
 
 load_dotenv()
+CLIENT_SECRET=os.getenv("WEBHOOK_SIGN_KEY")
 my_credentials = {
     "type": "service_account",
     "project_id": "common-health-app",
@@ -126,20 +130,28 @@ def update_phone():
         return {'message': f'Successfully updated phone number for user {user.uid}'}, 200
     except Exception as e:
         return {'error': str(e)}, 400
+    
+def verify_webhook(data, hmac_header):
+    digest = hmac.new(CLIENT_SECRET.encode('utf-8'), data, digestmod=hashlib.sha256).digest()
+    computed_hmac = base64.b64encode(digest)
+    return hmac.compare_digest(computed_hmac, hmac_header.encode('utf-8'))
 
 @app.route('/webhook/shopify/product-update', methods=['POST'])
 def handle_product_update():
-    data = request.json
-    print("Received webhook: ", data)
-    
-    # Assuming the product ID and relevant fields are in the data
-    shopify_id = data['id']
-    price = data['variants'][0]['price']
-    total_inventory = sum(variant['inventory_quantity'] for variant in data['variants'])
+    data = request.get_data()
+    verified = verify_webhook(data, request.headers.get('X-Shopify-Hmac-SHA256'))
 
-    # Update Salesforce
+    if not verified:
+        abort(401)
+
+    json_data = request.json
+    shopify_id = json_data['id']
+    price = json_data['variants'][0]['price']
+    total_inventory = sum(variant['inventory_quantity'] for variant in json_data['variants'])
+
+    # Update Salesforce after verification
     update_salesforce(shopify_id, price, total_inventory)
-    
+
     return jsonify(success=True), 200
 
 if __name__ == '__main__':
