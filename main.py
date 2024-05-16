@@ -13,7 +13,7 @@ import os
 import json
 from flask import Flask, request, redirect, jsonify
 from dotenv import load_dotenv
-from helpers.salesforce_access import find_user_via_opportunity_id, create_payment_history, update_salesforce
+from helpers.salesforce_access import find_user_via_opportunity_id, create_payment_history, update_salesforce, create_draft_order
 
 load_dotenv()
 CLIENT_SECRET=os.getenv("WEBHOOK_SIGN_KEY")
@@ -61,23 +61,7 @@ class PrpCrypt(object):
         msg = aes.decrypt(res).decode("utf8")
         return self.unpad(msg)
     
-def send_fcm_notification(token, order_id, status):
-    if status.lower() == 'success':
-        pay_status= "successful. Thank you for choosing Common Health."
-    else:
-        pay_status = "not successful."
-    message = messaging.Message(
-        token=token,
-        notification=messaging.Notification(
-            title='Payment Update',
-            body=f'Your payment for your order in Common Health is {pay_status}'
-        ),
-        data={
-            "orderId": order_id,
-            "action": "redirect_to_orders"
-        }
-    )
-
+def send_fcm_notification(message):
     # Send a message to the device corresponding to the provided token
     response = messaging.send(message)
     print('Successfully sent message:', response)
@@ -112,7 +96,24 @@ def check_payment_status():
             fcm_token = find_user_via_opportunity_id(opportunity_id)
             create_payment_history(opportunity_id,method_name,provider_name,total_amount, transaction_id,status)
 
-            send_fcm_notification(fcm_token,opportunity_id,status)
+            if status.lower() == 'success':
+                pay_status= "successful. Thank you for choosing Common Health."
+            else:
+                pay_status = "not successful."
+
+            message = messaging.Message(
+                token=fcm_token,
+                notification=messaging.Notification(
+                    title='Payment Update',
+                    body=f'Your payment for your order in Common Health is {pay_status}'
+                ),
+                data={
+                    "orderId": opportunity_id,
+                    "action": "redirect_to_orders"
+                }
+            )
+
+            send_fcm_notification(message)
 
             return jsonify(result_json), 200
         except Exception as e:
@@ -171,6 +172,26 @@ def handle_product_update():
     else:
         failed_updates = [variant_id for variant_id, success in updates if not success]
         return jsonify(success=False, error="Failed to update Salesforce", failed_variants=failed_updates), 500
+    
+@app.route('/webhook/salesforce/create_shopify_order', methods=['POST'])
+def create_shopify_order():
+    data = request.json
+    opportunity_id = data.get('opportunityId')
+    response = create_draft_order(opportunity_id)
+    fcm_token = find_user_via_opportunity_id(opportunity_id)
+    message = messaging.Message(
+        token=fcm_token,
+        notification=messaging.Notification(
+            title='New Orders',
+            body=f'You have new orders on your Account. Please check the Orders tab to see your pending orders.'
+        ),
+        data={
+            "action": "refresh_orders"
+        }
+    )
+
+    send_fcm_notification(message)
+    return response
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)

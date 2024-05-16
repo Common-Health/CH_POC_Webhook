@@ -1,4 +1,5 @@
 from simple_salesforce import Salesforce
+import requests
 from dotenv import load_dotenv
 import os
 from flask import jsonify
@@ -7,6 +8,7 @@ load_dotenv()
 username = os.getenv('SF_USERNAME')
 password = os.getenv('SF_PASSWORD')
 security_token = os.getenv('SF_SECURITY_TOKEN')
+access_key = os.getenv('ACCESS_KEY')
 
 sf = Salesforce(username=username, password=password, security_token=security_token, domain='test')
 
@@ -89,3 +91,67 @@ def update_salesforce(shopify_id, price, total_inventory):
     except Exception as e:
         print(f"Failed to update Salesforce: {e}")
         return False
+    
+def create_draft_order(opportunity_id):
+    try:
+        # Query Opportunity Line Items for the given Opportunity ID
+        query = f"""
+        SELECT Subscription__r.Id, Account.Shopify_Customer_ID__c
+        FROM Opportunity
+        WHERE Id = '{opportunity_id}'
+        """
+        result = sf.query(query)
+        
+        salesforce_items = result['records']
+        subscription_id = salesforce_items[0]['Subscription__r']['Id']
+        shopify_customer_id = salesforce_items[0]['Account']['Shopify_Customer_ID__c']
+
+        subscription_query = f"""
+        SELECT Quantity_Formula__c, Inventory__r.Id__c
+        FROM Subscription_Line_Item__c
+        WHERE Subscription__r.Id = '{subscription_id}'
+        """
+
+        subscription_result = sf.query(subscription_query)
+        line_items = subscription_result['records']
+        if not line_items:
+            return jsonify({'error': 'No line items found for the given Opportunity ID'}), 404
+
+        # Prepare Shopify draft order payload
+        order_line_items = [
+        {
+            "variant_id": item.get('Inventory__r', {}).get('Id__c'),
+            "quantity": int(item.get('Quantity_Formula__c'))
+        }
+        for item in line_items
+        ]
+
+        draft_order_data = {
+            "draft_order": {
+                "line_items": order_line_items,
+                "customer": {
+                    "id": shopify_customer_id
+                } if shopify_customer_id else {}
+            }
+        }
+
+        # Send request to Shopify API to create a draft order
+        shopify_url = f"https://{os.getenv('SHOP_URL')}/admin/api/{os.getenv('API_VERSION')}/draft_orders.json"
+        response = requests.post(shopify_url, json=draft_order_data,headers={"X-Shopify-Access-Token": access_key})
+        response_data = response.json()
+
+        if response.status_code != 201:
+            return jsonify({'error': response_data}), response.status_code
+        
+        shopify_order_number = response_data['draft_order']['name']
+
+        # Update the Opportunity record in Salesforce
+        update_data = {
+            'Shopify_Order_Number__c': shopify_order_number
+        }
+        sf.Opportunity.update(opportunity_id, update_data)
+
+        return jsonify(response_data), 201
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
