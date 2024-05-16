@@ -154,4 +154,4 @@ def create_draft_order(opportunity_id):
         return jsonify(response_data), 201
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        raise ValueError(str(e))
