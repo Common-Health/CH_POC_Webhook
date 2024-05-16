@@ -141,7 +141,7 @@ def create_draft_order(opportunity_id):
         response_data = response.json()
 
         if response.status_code != 201:
-            return jsonify({'error': response_data}), response.status_code
+            raise ValueError(str(response_data))
         
         shopify_order_number = response_data['draft_order']['name']
 
