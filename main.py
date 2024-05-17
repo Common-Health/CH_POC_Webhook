@@ -13,7 +13,7 @@ import os
 import json
 from flask import Flask, request, redirect, jsonify
 from dotenv import load_dotenv
-from helpers.salesforce_access import find_user_via_opportunity_id, create_payment_history, update_salesforce, create_draft_order
+from helpers.salesforce_access import find_user_via_opportunity_id, create_payment_history, update_salesforce, create_draft_order, complete_draft_order
 
 load_dotenv()
 CLIENT_SECRET=os.getenv("WEBHOOK_SIGN_KEY")
@@ -191,6 +191,15 @@ def create_shopify_order():
     )
 
     send_fcm_notification(message)
+    return response
+
+
+@app.route('/webhook/salesforce/process_opportunity', methods=['POST'])
+def complete_shopify_order():
+    data = request.json
+    opportunity_id = data.get('opportunityId')
+    response = complete_draft_order(opportunity_id)
+
     return response
 
 if __name__ == '__main__':
