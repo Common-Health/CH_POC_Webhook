@@ -191,7 +191,7 @@ def complete_draft_order(opportunity_id):
             if response.status_code != 200:
                 raise ValueError('Failed to update draft order with customer')
         
-        complete_order_url = f"{BASEURL}/draft_orders/{shopify_order_id}/complete.json"
+        complete_order_url = f"{BASEURL}/draft_orders/{shopify_order_id}/complete.json?payment_pending=true"
         response = requests.put(complete_order_url, headers={"X-Shopify-Access-Token": access_key})
 
         if response.status_code != 200:
