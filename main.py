@@ -13,7 +13,7 @@ import os
 import json
 from flask import Flask, request, redirect, jsonify
 from dotenv import load_dotenv
-from helpers.salesforce_access import find_user_via_opportunity_id, create_payment_history, update_salesforce, create_draft_order, complete_draft_order
+from helpers.salesforce_access import find_user_via_opportunity_id, create_payment_history, update_salesforce, create_draft_order, complete_draft_order, update_salesforce_account
 
 load_dotenv()
 CLIENT_SECRET=os.getenv("WEBHOOK_SIGN_KEY")
@@ -201,6 +201,35 @@ def complete_shopify_order():
     response = complete_draft_order(opportunity_id)
 
     return response
+
+
+@app.route('/webhook/shopify/customer_create', methods=['POST'])
+def handle_new_customer():
+    data = request.get_data()
+    verified = verify_webhook(data, request.headers.get('X-Shopify-Hmac-SHA256'))
+
+    if not verified:
+        abort(401)
+    
+    try:
+        data = request.json
+        
+        if data and 'id' in data:
+            shopify_customer_id = data['id']
+            phone = data.get('phone', '')
+
+            if not phone:
+                return jsonify({'status': 'error', 'message': 'No phone number provided'}), 400
+
+            # Call function from salesforce.py to update Salesforce
+            update_salesforce_account(shopify_customer_id, phone)
+
+            return jsonify({'status': 'success'}), 200
+        else:
+            return jsonify({'status': 'error', 'message': 'Invalid data'}), 400
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)

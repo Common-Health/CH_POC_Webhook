@@ -1,4 +1,4 @@
-from simple_salesforce import Salesforce
+from simple_salesforce import Salesforce, SalesforceError
 import requests
 from dotenv import load_dotenv
 import os
@@ -212,3 +212,17 @@ def complete_draft_order(opportunity_id):
         return shopify_response
     except Exception as e:
         raise ValueError(str(e))
+    
+def update_salesforce_account(shopify_customer_id, phone):
+    try:
+        # Find or create an Account in Salesforce based on the phone number
+        result = sf.query(f"SELECT Id FROM Account WHERE Phone = '{phone}' LIMIT 1")
+        if not result['records']:
+            raise ValueError("Account Not Found!")
+            # Account found, update the Shopify_Customer_ID__c
+        account_id = result['records'][0]['Id']
+        sf.Account.update(account_id, {
+            'Shopify_Customer_ID__c': shopify_customer_id
+        })
+    except Exception as e:
+        raise SalesforceError(f"Failed to update Salesforce account: {str(e)}")
