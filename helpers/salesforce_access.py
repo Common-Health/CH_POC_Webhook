@@ -226,3 +226,32 @@ def update_salesforce_account(shopify_customer_id, phone):
         })
     except Exception as e:
         raise SalesforceError(f"Failed to update Salesforce account: {str(e)}")
+
+def find_opportunity_by_shopify_order_id(shopify_order_id):
+    query = f"SELECT Id FROM Opportunity WHERE Shopify_Order_Id__c = '{shopify_order_id}'"
+    result = sf.query(query)
+    if result['records']:
+        return result['records'][0]['Id']
+    return None
+
+def find_inventory_by_variant_id(variant_id):
+    query = f"SELECT Id FROM Inventory__c WHERE Id__c = '{variant_id}'"
+    result = sf.query(query)
+    if result['records']:
+        return result['records'][0]['Id']
+    return None
+
+def find_opportunity_item_by_opportunity_id(opportunity_id):
+    query = f"SELECT Id FROM Opportunity_Item__c WHERE Opportunity__c = '{opportunity_id}'"
+    result = sf.query(query)
+    if result['records']:
+        return result['records'][0]['Id']
+    return None
+
+def update_opportunity_item(opportunity_item_id, inventory_id, quantity):
+    data = {
+        'Inventory__c': inventory_id,
+        'Quantity__c': quantity
+    }
+    update_result = sf.Opportunity_Item__c.update(opportunity_item_id, data)
+    return update_result

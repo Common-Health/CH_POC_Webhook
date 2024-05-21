@@ -13,7 +13,7 @@ import os
 import json
 from flask import Flask, request, redirect, jsonify
 from dotenv import load_dotenv
-from helpers.salesforce_access import find_user_via_opportunity_id, create_payment_history, update_salesforce, create_draft_order, complete_draft_order, update_salesforce_account
+from helpers.salesforce_access import find_user_via_opportunity_id, create_payment_history, update_salesforce, create_draft_order, complete_draft_order, update_salesforce_account, find_opportunity_by_shopify_order_id, find_inventory_by_variant_id, find_opportunity_item_by_opportunity_id, update_opportunity_item
 
 load_dotenv()
 CLIENT_SECRET=os.getenv("WEBHOOK_SIGN_KEY")
@@ -230,6 +230,33 @@ def handle_new_customer():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+
+@app.route('/webhook/shopify/order_update', methods=['POST'])
+def shopify_webhook():
+    data = request.json
+    draft_order_id = data['id']
+    new_variant_id = data['line_items'][0]['variant_id']
+    quantity = data['line_items'][0]['quantity']
+
+    # Find Opportunity using Shopify Order ID
+    opportunity_id = find_opportunity_by_shopify_order_id(draft_order_id)
+    if not opportunity_id:
+        return jsonify({'error': 'Opportunity not found'}), 404
+
+    # Find Inventory Item using Variant ID
+    inventory_id = find_inventory_by_variant_id(new_variant_id)
+    if not inventory_id:
+        return jsonify({'error': 'Inventory item not found'}), 404
+
+    # Find Opportunity Item using Opportunity ID
+    opportunity_item_id = find_opportunity_item_by_opportunity_id(opportunity_id)
+    if not opportunity_item_id:
+        return jsonify({'error': 'Opportunity item not found'}), 404
+
+    # Update Opportunity Item
+    update_result = update_opportunity_item(opportunity_item_id, inventory_id, quantity)
+
+    return jsonify(update_result)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
