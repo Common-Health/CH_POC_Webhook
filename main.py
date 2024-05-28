@@ -13,7 +13,7 @@ import os
 import json
 from flask import Flask, request, redirect, jsonify
 from dotenv import load_dotenv
-from helpers.salesforce_access import find_user_via_opportunity_id, create_payment_history, update_salesforce, create_draft_order, complete_draft_order, update_salesforce_account, find_opportunity_by_shopify_order_id, find_inventory_by_variant_id, find_opportunity_item_by_opportunity_id, update_opportunity_item
+from helpers.salesforce_access import find_user_via_opportunity_id, update_payment_history, update_salesforce, create_draft_order, complete_draft_order, update_salesforce_account, find_opportunity_by_shopify_order_id, find_inventory_by_variant_id, find_opportunity_item_by_opportunity_id, update_opportunity_item, find_user_via_merchant_order_id
 
 load_dotenv()
 CLIENT_SECRET=os.getenv("WEBHOOK_SIGN_KEY")
@@ -71,32 +71,23 @@ def check_payment_status():
     if request.method == 'POST':
         try:
             received_data = request.get_json(silent=True)
-            payment_result = received_data["paymentResult"]
-            decrypted_result = PrpCrypt().decrypt(payment_result)
-            result_json = json.loads(decrypted_result)
+            payment_result = received_data["Request"]
 
-            # Store data in Firestore
-            customer_name = result_json.get('customerName')
+            status = payment_result["trade_status"]
+            merch_order_id = payment_result["merch_order_id"]
+            total_amount = payment_result["total_amount"]
+            transaction_id = payment_result["mm_order_id"]
+            method_name = "APP"
+            provider_name = "KBZ Pay"
 
-            if not customer_name:
-                return jsonify({'error': 'customerName is required'}), 400
 
-            # Save the data in Realtime Database
-            ref = db.reference('/customers')
-            customer_ref = ref.child(customer_name)
-            customer_ref.set(result_json)
+            user_details = find_user_via_merchant_order_id(merch_order_id)
+            fcm_token = user_details["fcm_token"]
+            opportunity_id = user_details["opportunity_id"]
+            payment_history_id = user_details["payment_history_id"]
+            update_payment_history(payment_history_id, merch_order_id,opportunity_id,method_name,provider_name,total_amount, transaction_id,status)
 
-            opportunity_id = result_json.get('merchantOrderId')
-            method_name = result_json.get('methodName')
-            provider_name = result_json.get('providerName')
-            total_amount = int(result_json.get('totalAmount'))
-            transaction_id = result_json.get('transactionId')
-            status = result_json.get('transactionStatus')
-
-            fcm_token = find_user_via_opportunity_id(opportunity_id)
-            create_payment_history(opportunity_id,method_name,provider_name,total_amount, transaction_id,status)
-
-            if status.lower() == 'success':
+            if status.lower() == 'pay_success':
                 pay_status= "successful. Thank you for choosing Common Health."
             else:
                 pay_status = "not successful."
@@ -113,9 +104,11 @@ def check_payment_status():
                 }
             )
 
-            send_fcm_notification(message)
-
-            return jsonify(result_json), 200
+            try:
+                send_fcm_notification(message)
+            except Exception as e:
+                print(f"Failed to send FCM notification: {str(e)}")
+            return "success"
         except Exception as e:
             return jsonify({"error": str(e)}), 500
     else:

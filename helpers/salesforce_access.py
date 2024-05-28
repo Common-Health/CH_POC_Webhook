@@ -30,7 +30,26 @@ def find_user_via_opportunity_id(opportunity_id):
     fcm_token = result['records'][0]['FCM_Token__c']
     return fcm_token
 
-def create_payment_history(opportunity_id, method_name, provider_name, total_amount, transaction_id, status):
+def find_user_via_merchant_order_id(merchant_order_id):
+    query = f"""
+    SELECT Id, Opportunity__c, Account__c
+    FROM Payment_History__c
+    WHERE Merchant_Order_ID__c = '{merchant_order_id}'
+    """
+    result = sf.query(query)
+    account_id = result['records'][0]['Account__c']
+    opportunity_id = result['records'][0]['Opportunity__c']
+    payment_history_id = result['records'][0]['Id']
+    account_query = f"""
+    SELECT FCM_Token__c
+    FROM Account 
+    WHERE ID = '{account_id}'
+    """
+    result = sf.query(account_query)
+    fcm_token = result['records'][0]['FCM_Token__c']
+    return {"fcm_token": fcm_token, "opportunity_id":opportunity_id, "payment_history_id":payment_history_id}
+
+def update_payment_history(payment_history_id, merch_order_id, opportunity_id, method_name, provider_name, total_amount, transaction_id, status):
     try:
         account_query = f"""
         SELECT AccountId
@@ -46,20 +65,20 @@ def create_payment_history(opportunity_id, method_name, provider_name, total_amo
 
         # Data to be inserted into Payment_History__c
         payment_data = {
-            'Merchant_Order_ID__c': opportunity_id,
+            'Merchant_Order_ID__c': merch_order_id,
             'Method_Name__c': method_name,
             'Provider_Name__c': provider_name,
             'Total_Amount_Paid__c': total_amount,
             'Dinger_Transaction_ID__c': transaction_id,
             'Dinger_Status__c': status,
-            'CurrencyIsoCode': 'MMK',
-            'Account__c': account_id  # Assuming AccountId__c is the relationship field on Payment_History__c
+            'Opportunity__c':opportunity_id,
+            'CurrencyIsoCode': 'MMK'
         }
 
         # Insert the new Payment History record
-        sf.Payment_History__c.create(payment_data)
+        sf.Payment_History__c.update(payment_history_id, payment_data)
 
-        if status.lower() == 'success':
+        if status.lower() == 'pay_success':
             pay_status = True
         else:
             pay_status = False
