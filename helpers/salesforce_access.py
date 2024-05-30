@@ -123,28 +123,34 @@ def create_draft_order(opportunity_id):
         result = sf.query(query)
         
         salesforce_items = result['records']
+        if not salesforce_items:
+            return jsonify({'error': 'No opportunity found for the given Opportunity ID'}), 404
+        
         subscription_id = salesforce_items[0]['Subscription__r']['Id']
         shopify_customer_id = salesforce_items[0]['Account']['Shopify_Customer_ID__c']
 
+        # Query Subscription Line Items for the given Subscription ID
         subscription_query = f"""
         SELECT Quantity_Formula__c, Inventory__r.Id__c
         FROM Subscription_Line_Item__c
         WHERE Subscription__r.Id = '{subscription_id}'
         """
-
         subscription_result = sf.query(subscription_query)
         line_items = subscription_result['records']
         if not line_items:
-            return jsonify({'error': 'No line items found for the given Opportunity ID'}), 404
+            return jsonify({'error': 'No line items found for the given Subscription ID'}), 404
 
         # Prepare Shopify draft order payload
         order_line_items = [
-        {
-            "variant_id": item.get('Inventory__r', {}).get('Id__c'),
-            "quantity": int(item.get('Quantity_Formula__c'))
-        }
-        for item in line_items
+            {
+                "variant_id": item.get('Inventory__r', {}).get('Id__c'),
+                "quantity": int(item.get('Quantity_Formula__c', 0))
+            }
+            for item in line_items if item.get('Inventory__r', {}).get('Id__c') and item.get('Quantity_Formula__c')
         ]
+
+        if not order_line_items:
+            return jsonify({'error': 'No valid line items found to create draft order'}), 400
 
         draft_order_data = {
             "draft_order": {
@@ -157,12 +163,12 @@ def create_draft_order(opportunity_id):
 
         # Send request to Shopify API to create a draft order
         shopify_url = BASEURL + "/draft_orders.json"
-        response = requests.post(shopify_url, json=draft_order_data,headers={"X-Shopify-Access-Token": access_key})
+        response = requests.post(shopify_url, json=draft_order_data, headers={"X-Shopify-Access-Token": access_key})
         response_data = response.json()
 
         if response.status_code != 201:
-            raise ValueError(str(response_data))
-        
+            raise ValueError(f"Shopify API error: {response_data}")
+
         shopify_order_number = response_data['draft_order']['name']
         shopify_draft_order_id = response_data['draft_order']['id']
 
@@ -176,7 +182,7 @@ def create_draft_order(opportunity_id):
         return jsonify(response_data), 201
 
     except Exception as e:
-        raise ValueError(str(e))
+        return jsonify({'error': str(e)}), 500
     
 def complete_draft_order(opportunity_id):
     try:
