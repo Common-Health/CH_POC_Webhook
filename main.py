@@ -34,6 +34,7 @@ cred= credentials.Certificate(my_credentials)
 firebase_admin.initialize_app(cred, {
     'databaseURL': db_url
 })
+CUSTOM_HEADER = os.getenv('CUSTOM_HEADER')
 
 app = Flask(__name__)
 
@@ -65,6 +66,45 @@ def send_fcm_notification(message):
     # Send a message to the device corresponding to the provided token
     response = messaging.send(message)
     print('Successfully sent message:', response)
+
+@app.route('/api/send_fcm_message', methods=['POST'])
+def send_message():
+    try:
+        received_data = request.get_json()
+        custom_header = request.headers.get('Custom-Header')
+    
+        # Validate the custom header
+        if not custom_header:
+            # If the header is missing, return a 400 Bad Request response
+            return jsonify(error='Custom-Header is missing'), 400
+        
+        # Add your specific validation logic here
+        if custom_header != CUSTOM_HEADER:
+            # If the header value is not what you expect, return a 400 Bad Request response
+            return jsonify(error='Invalid value for Custom-Header'), 400
+        
+        message = received_data.get('message')
+        notif_title = received_data.get('title')
+        fcm_token = received_data.get('fcmToken')
+        data = received_data.get('data', {})  # Get the 'data' dictionary if present, otherwise an empty dict
+        
+        if not message or not notif_title or not fcm_token:
+            return jsonify(error='Message, title, and opportunityId are required fields'), 400
+
+        notification = messaging.Message(
+            token=fcm_token,
+            notification=messaging.Notification(
+                title=notif_title,
+                body=message
+            ),
+            data=data  # Attach the optional data dictionary
+        )
+
+        response = messaging.send(notification)
+        return jsonify(success=True, response=response), 200
+
+    except Exception as e:
+        return jsonify(error=str(e)), 500
     
 @app.route('/api/check_payment', methods=['POST'])
 def check_payment_status():
