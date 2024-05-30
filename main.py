@@ -168,24 +168,26 @@ def handle_product_update():
     
 @app.route('/webhook/salesforce/create_shopify_order', methods=['POST'])
 def create_shopify_order():
-    data = request.json
-    opportunity_id = data.get('opportunityId')
-    response = create_draft_order(opportunity_id)
-    fcm_token = find_user_via_opportunity_id(opportunity_id)
-    message = messaging.Message(
-        token=fcm_token,
-        notification=messaging.Notification(
-            title='New Orders',
-            body=f'You have new orders on your Account. Please check the Orders tab to see your pending orders.'
-        ),
-        data={
-            "action": "refresh_orders"
-        }
-    )
+    try:
+        data = request.json
+        opportunity_id = data.get('opportunityId')
+        response = create_draft_order(opportunity_id)
+        fcm_token = find_user_via_opportunity_id(opportunity_id)
+        message = messaging.Message(
+            token=fcm_token,
+            notification=messaging.Notification(
+                title='New Orders',
+                body=f'You have new orders on your Account. Please check the Orders tab to see your pending orders.'
+            ),
+            data={
+                "action": "refresh_orders"
+            }
+        )
 
-    send_fcm_notification(message)
-    return response
-
+        send_fcm_notification(message)
+        return response
+    except Exception as e:
+        return str(e)
 
 @app.route('/webhook/salesforce/process_opportunity', methods=['POST'])
 def complete_shopify_order():
