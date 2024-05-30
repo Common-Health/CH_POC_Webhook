@@ -111,6 +111,8 @@ def check_payment_status():
     if request.method == 'POST':
         try:
             received_data = request.get_json(silent=True)
+            if received_data is None:
+                return jsonify({"error": "No JSON data found in the request"}), 400
             try:
                 payment_result = received_data["Request"]
             except:
