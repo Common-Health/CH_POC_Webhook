@@ -111,12 +111,15 @@ def check_payment_status():
     if request.method == 'POST':
         try:
             received_data = request.get_json(silent=True)
-            payment_result = received_data["Request"]
+            try:
+                payment_result = received_data["Request"]
+            except:
+                payment_result = received_data["Response"]
 
-            status = payment_result["trade_status"]
-            merch_order_id = payment_result["merch_order_id"]
-            total_amount = payment_result["total_amount"]
-            transaction_id = payment_result["mm_order_id"]
+            status = payment_result.get("trade_status")
+            merch_order_id = payment_result.get("merch_order_id")
+            total_amount = payment_result.get("total_amount")
+            transaction_id = payment_result.get("mm_order_id")
             method_name = "APP"
             provider_name = "KBZ Pay"
 
