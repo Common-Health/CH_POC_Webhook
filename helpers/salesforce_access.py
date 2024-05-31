@@ -1,4 +1,4 @@
-from simple_salesforce import Salesforce, SalesforceError
+from simple_salesforce import Salesforce, SalesforceError,SalesforceResourceNotFound, SalesforceMalformedRequest
 import requests
 from dotenv import load_dotenv
 import os
@@ -280,3 +280,23 @@ def update_opportunity_item(opportunity_item_id, inventory_id, quantity):
     }
     update_result = sf.Opportunity_Item__c.update(opportunity_item_id, data)
     return update_result
+
+def update_opportunity_sf(new_stage, opp_id):
+    try:
+        # Check if the Opportunity exists
+        sf.Opportunity.get(opp_id)
+
+        # Update the Opportunity stage
+        sf.Opportunity.update(opp_id, {
+            'StageName': new_stage
+        })
+        return {'response': 'Opportunity updated successfully!', 'opportunityId':opp_id}
+    except SalesforceResourceNotFound:
+        # Opportunity ID is not found
+        return jsonify({'error': 'Opportunity not found'}), 404
+    except SalesforceMalformedRequest as e:
+        # Handling cases such as invalid field values or fields that do not exist
+        return jsonify({'error': 'Malformed request: ' + str(e)}), 400
+    except Exception as e:
+        # Generic error handling for any other unexpected errors
+        return jsonify({'error': 'An error occurred: ' + str(e)}), 500
