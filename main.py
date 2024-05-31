@@ -85,12 +85,13 @@ def send_message():
         
         message = received_data.get('message')
         notif_title = received_data.get('title')
-        fcm_token = received_data.get('fcmToken')
+        opportunity_id = received_data.get('opportunityId')
         data = received_data.get('data', {})  # Get the 'data' dictionary if present, otherwise an empty dict
         
-        if not message or not notif_title or not fcm_token:
+        if not message or not notif_title or not opportunity_id:
             return jsonify(error='Message, title, and opportunityId are required fields'), 400
 
+        fcm_token = find_user_via_opportunity_id(opportunity_id)
         notification = messaging.Message(
             token=fcm_token,
             notification=messaging.Notification(
