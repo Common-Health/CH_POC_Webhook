@@ -91,7 +91,8 @@ def send_message():
         if not message or not notif_title or not opportunity_id:
             return jsonify(error='Message, title, and opportunityId are required fields'), 400
 
-        fcm_token = find_user_via_opportunity_id(opportunity_id)
+        user_details = find_user_via_opportunity_id(opportunity_id)
+        fcm_token = user_details['fcm_token']
         notification = messaging.Message(
             token=fcm_token,
             notification=messaging.Notification(
@@ -133,18 +134,19 @@ def check_payment_status():
             fcm_token = user_details["fcm_token"]
             opportunity_id = user_details["opportunity_id"]
             payment_history_id = user_details["payment_history_id"]
+            name = user_details['name']
             update_payment_history(payment_history_id, merch_order_id,opportunity_id,method_name,provider_name,total_amount, transaction_id,status)
 
             if status.lower() == 'pay_success':
-                pay_status= "successful. Thank you for choosing Common Health."
+                pay_status= f"Hi {name}, your payment was successful. Thank you! Transaction details are available in your account."
             else:
-                pay_status = "not successful."
+                pay_status = f"Hi {name}, your payment attempt failed. Please check your details and try again. Contact support if you require assistance"
 
             message = messaging.Message(
                 token=fcm_token,
                 notification=messaging.Notification(
                     title='Payment Update',
-                    body=f'Your payment for your order in Common Health is {pay_status}'
+                    body=pay_status
                 ),
                 data={
                     "orderId": opportunity_id,
@@ -220,12 +222,14 @@ def create_shopify_order():
         data = request.json
         opportunity_id = data.get('opportunityId')
         response = create_draft_order(opportunity_id)
-        fcm_token = find_user_via_opportunity_id(opportunity_id)
+        user_details = find_user_via_opportunity_id(opportunity_id)
+        fcm_token = user_details['fcm_token']
+        name = user_details['name']
         message = messaging.Message(
             token=fcm_token,
             notification=messaging.Notification(
                 title='New Orders',
-                body=f'You have new orders on your Account. Please check the Orders tab to see your pending orders.'
+                body=f'Hi {name}, you have new orders on your Account. Please check the Orders tab to see your pending orders.'
             ),
             data={
                 "action": "refresh_orders"
