@@ -11,9 +11,12 @@ import hashlib
 import basehash
 import os
 import json
+import logging
+import sys
 from flask import Flask, request, redirect, jsonify
 from dotenv import load_dotenv
 from helpers.salesforce_access import find_user_via_opportunity_id, update_payment_history, update_salesforce, create_draft_order, complete_draft_order, update_salesforce_account, find_opportunity_by_shopify_order_id, find_inventory_by_variant_id, find_opportunity_item_by_opportunity_id, update_opportunity_item, find_user_via_merchant_order_id, update_opportunity_sf
+from helpers.MPU_payment import verify_payment_response
 
 load_dotenv()
 CLIENT_SECRET=os.getenv("WEBHOOK_SIGN_KEY")
@@ -35,32 +38,16 @@ firebase_admin.initialize_app(cred, {
     'databaseURL': db_url
 })
 CUSTOM_HEADER = os.getenv('CUSTOM_HEADER')
-
+SECRET_KEY = os.getenv('SECRET_KEY')
 app = Flask(__name__)
 
-class PrpCrypt(object):
- 
-    def __init__(self):
-        load_dotenv()
-        self.key = os.getenv('PRIVATE_KEY')
-        if not self.key:
-            raise ValueError("No PRIVATE_KEY found in environment variables.")
-        self.unpad = lambda date: date[0:-ord(date[-1])]
- 
-    def aes_cipher(self, aes_str):
-        aes = AES.new(self.key.encode('utf-8'), AES.MODE_ECB)
-        pad_pkcs7 = pad(aes_str.encode('utf-8'), AES.block_size, style='pkcs7') 
-        encrypt_aes = aes.encrypt(pad_pkcs7)
-        encrypted_text = str(base64.encodebytes(encrypt_aes), encoding='utf-8') 
-        encrypted_text_str = encrypted_text.replace("\n", "")
- 
-        return encrypted_text_str
- 
-    def decrypt(self, decrData):
-        res = base64.decodebytes(decrData.encode("utf8"))
-        aes = AES.new(self.key.encode('utf-8'), AES.MODE_ECB)
-        msg = aes.decrypt(res).decode("utf8")
-        return self.unpad(msg)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s: %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)  # Log to standard output
+    ]
+)
     
 def send_fcm_notification(message):
     # Send a message to the device corresponding to the provided token
@@ -109,7 +96,21 @@ def send_message():
 
     except Exception as e:
         return jsonify(error=str(e)), 500
-    
+
+@app.route('/api/check_payment/MPU', methods=['POST'])
+def check_payment_mpu():
+    if request.method == 'POST':
+        try:
+            received_data = request.get_data()
+            logging.info(received_data)
+            response = verify_payment_response(received_data,SECRET_KEY)
+            logging.info(response)
+            return response
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    else:
+        return jsonify({"error": "Method not allowed"}), 405
+
 @app.route('/api/check_payment', methods=['POST'])
 def check_payment_status():
     if request.method == 'POST':
