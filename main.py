@@ -101,9 +101,29 @@ def send_message():
 def check_payment_mpu():
     if request.method == 'POST':
         try:
-            received_data = request.get_data()
-            logging.info(received_data)
-            response = verify_payment_response(received_data,SECRET_KEY)
+            logging.info(request.query_string.decode('utf-8'))
+            response_values = {
+                'merchantID': request.args.get('merchantID'),
+                'respCode': request.args.get('respCode'),
+                'pan': request.args.get('pan'),
+                'amount': request.args.get('amount'),
+                'invoiceNo': request.args.get('invoiceNo'),
+                'transRef': request.args.get('tranRef'),
+                'approvalCode': request.args.get('approvalCode'),
+                'dateTime': request.args.get('dateTime'),
+                'status': request.args.get('status'),
+                'hashValue': request.args.get('hashValue')  # Assuming the hashValue is also provided in the request
+            }
+            
+
+            verification_result = verify_payment_response(response_values, SECRET_KEY)
+
+            response = {
+                "Signature String": verification_result['signature_string'],
+                "Generated HMAC Signature": verification_result['generated_hash_value'],
+                "Expected Hash Value": verification_result['expected_hash_value'],
+                "Hashes match": verification_result['hashes_match']
+            }
             logging.info(response)
             return response
         except Exception as e:
