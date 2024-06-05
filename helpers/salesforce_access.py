@@ -94,7 +94,11 @@ def update_payment_history(payment_history_id, merch_order_id, opportunity_id, m
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
+@retry(Exception, tries=3, delay=2)
 def update_salesforce(shopify_id, price, total_inventory):
+    max_retries = 3
+    current_retry = 0
+    
     try:
         # Query Salesforce for the record to update
         query = f"SELECT Id FROM Inventory__c WHERE Id__c = '{shopify_id}'"
@@ -111,8 +115,13 @@ def update_salesforce(shopify_id, price, total_inventory):
             print("No matching Salesforce record found")
             return False
     except Exception as e:
+        current_retry += 1
         print(f"Failed to update Salesforce: {e}")
-        return False
+        if current_retry == max_retries:
+            print("Max retries exceeded. Returning False.")
+            return False
+        else:
+            raise  # Re-raise the exception to trigger retry
     
 def create_draft_order(opportunity_id):
     try:
