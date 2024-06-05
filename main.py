@@ -325,6 +325,3 @@ def shopify_webhook():
     update_result = update_opportunity_item(opportunity_item_id, inventory_id, quantity)
 
     return jsonify(update_result)
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
