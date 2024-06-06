@@ -96,15 +96,24 @@ def send_message():
 
     except Exception as e:
         return jsonify(error=str(e)), 500
+    
+def convert_padded_amount(padded_amount):
+    # Remove leading zeros
+    amount = padded_amount.lstrip('0')
+    
+    # If the string is empty after stripping zeros, it means the amount is 0
+    if not amount:
+        return '0.00'
+    
+    # Insert the decimal point before the last two digits
+    decimal_amount = amount[:-2] + '.' + amount[-2:]
+    
+    return decimal_amount
 
 @app.route('/api/check_payment/MPU', methods=['POST'])
 def check_payment_mpu():
     if request.method == 'POST':
         try:
-            logging.info(request.data.decode('utf-8'))
-            print(request.data.decode('utf-8'))
-            logging.info(request.form.to_dict())
-            print(request.form.to_dict())
             response_values = {
                 'merchantID': request.form.get('merchantID'),
                 'respCode': request.form.get('respCode'),
@@ -115,9 +124,13 @@ def check_payment_mpu():
                 'approvalCode': request.form.get('approvalCode'),
                 'dateTime': request.form.get('dateTime'),
                 'status': request.form.get('status'),
+                'failReason': request.form.get('failReason'),
+                'userDefined1': request.form.get('userDefined1'), 
+                'userDefined2': request.form.get('userDefined2'),
+                'userDefined3': request.form.get('userDefined3'),
+                'categoryCode': request.form.get('categoryCode'),
                 'hashValue': request.form.get('hashValue')  # Assuming the hashValue is also provided in the request
             }
-            print(response_values)
 
             verification_result = verify_payment_response(response_values, SECRET_KEY)
 
@@ -127,9 +140,48 @@ def check_payment_mpu():
                 "Expected Hash Value": verification_result['expected_hash_value'],
                 "Hashes match": verification_result['hashes_match']
             }
-            print(response)
-            logging.info(response)
-            return response
+            if response["Hashes match"] == False:
+                abort(401)
+
+            merch_id = response_values['invoiceNo']
+            status = response_values['status']
+            total_amount = convert_padded_amount(response_values['amount'])
+            transaction_id = response_values['transRef']
+            method_name = "OTP"
+            provider_name = "MPU"
+            user_details = find_user_via_merchant_order_id(merch_id)
+            fcm_token = user_details["fcm_token"]
+            opportunity_id = user_details["opportunity_id"]
+            payment_history_id = user_details["payment_history_id"]
+            name = user_details['name']
+
+            update_payment_history(payment_history_id,merch_id,opportunity_id,method_name,provider_name,total_amount,transaction_id,status)
+            if status.lower() == 'ap':
+                pay_status= f"Hi {name}, your payment was successful. Thank you! Transaction details are available in your account."
+            elif status.lower() == 'de':
+                pay_status= f"Hi {name}, your payment via MPU was declined. Please check your details and try again. Contact support if you require assistance"
+            elif status.lower() == 'fa':
+                pay_status= f"Hi {name}, your payment attempt via MPU failed. Please check your details and try again. Contact support if you require assistance"
+            else:
+                pay_status = f"Hi {name}, your payment for medication is currently on pending. We will inform you once we receive your payment. Thank you!"
+
+            message = messaging.Message(
+                token=fcm_token,
+                notification=messaging.Notification(
+                    title='Payment Update',
+                    body=pay_status
+                ),
+                data={
+                    "orderId": opportunity_id,
+                    "action": "redirect_to_orders"
+                }
+            )
+
+            try:
+                send_fcm_notification(message)
+            except Exception as e:
+                print(f"Failed to send FCM notification: {str(e)}")
+            return "success"
         except Exception as e:
             return jsonify({"error": str(e)}), 500
     else:
@@ -338,3 +390,6 @@ def shopify_webhook():
     except Exception as e:
         logging.error(f"Error processing order update: {e}")
         return jsonify({'success': False, 'error': str(e)}), 200
+
+if __name__ == "__main__":
+    app.run()

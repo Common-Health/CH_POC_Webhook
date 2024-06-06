@@ -81,7 +81,7 @@ def update_payment_history(payment_history_id, merch_order_id, opportunity_id, m
         # Insert the new Payment History record
         sf.Payment_History__c.update(payment_history_id, payment_data)
 
-        if status.lower() == 'pay_success':
+        if status.lower() == 'pay_success' or status.lower() == 'ap':
             pay_status = True
         else:
             pay_status = False
