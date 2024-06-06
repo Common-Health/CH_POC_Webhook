@@ -103,6 +103,8 @@ def check_payment_mpu():
         try:
             logging.info(request.data.decode('utf-8'))
             print(request.data.decode('utf-8'))
+            logging.info(request.form.to_dict())
+            print(request.form.to_dict())
             response_values = {
                 'merchantID': request.form.get('merchantID'),
                 'respCode': request.form.get('respCode'),
@@ -115,7 +117,7 @@ def check_payment_mpu():
                 'status': request.form.get('status'),
                 'hashValue': request.form.get('hashValue')  # Assuming the hashValue is also provided in the request
             }
-            
+            print(response_values)
 
             verification_result = verify_payment_response(response_values, SECRET_KEY)
 
