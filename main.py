@@ -101,18 +101,19 @@ def send_message():
 def check_payment_mpu():
     if request.method == 'POST':
         try:
-            logging.info(request.query_string.decode('utf-8'))
+            logging.info(request.data.decode('utf-8'))
+            print(request.data.decode('utf-8'))
             response_values = {
-                'merchantID': request.args.get('merchantID'),
-                'respCode': request.args.get('respCode'),
-                'pan': request.args.get('pan'),
-                'amount': request.args.get('amount'),
-                'invoiceNo': request.args.get('invoiceNo'),
-                'transRef': request.args.get('tranRef'),
-                'approvalCode': request.args.get('approvalCode'),
-                'dateTime': request.args.get('dateTime'),
-                'status': request.args.get('status'),
-                'hashValue': request.args.get('hashValue')  # Assuming the hashValue is also provided in the request
+                'merchantID': request.form.get('merchantID'),
+                'respCode': request.form.get('respCode'),
+                'pan': request.form.get('pan'),
+                'amount': request.form.get('amount'),
+                'invoiceNo': request.form.get('invoiceNo'),
+                'transRef': request.form.get('tranRef'),
+                'approvalCode': request.form.get('approvalCode'),
+                'dateTime': request.form.get('dateTime'),
+                'status': request.form.get('status'),
+                'hashValue': request.form.get('hashValue')  # Assuming the hashValue is also provided in the request
             }
             
 
@@ -124,6 +125,7 @@ def check_payment_mpu():
                 "Expected Hash Value": verification_result['expected_hash_value'],
                 "Hashes match": verification_result['hashes_match']
             }
+            print(response)
             logging.info(response)
             return response
         except Exception as e:
