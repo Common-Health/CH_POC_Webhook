@@ -232,6 +232,7 @@ def handle_product_update():
 
     failed_updates = [variant_id for variant_id, success in updates if not success]
     if failed_updates:
+        logging.error(f"Failed to update Salesforce for variants: {failed_updates}")
         return jsonify(success=False, error="Failed to update Salesforce", failed_variants=failed_updates), 200
     else:
         return jsonify(success=True), 200
@@ -304,23 +305,32 @@ def shopify_webhook():
     draft_order_id = data['id']
     new_variant_id = data['line_items'][0]['variant_id']
     quantity = data['line_items'][0]['quantity']
+    
+    try:
+        # Find Opportunity using Shopify Order ID
+        opportunity_id = find_opportunity_by_shopify_order_id(draft_order_id)
+        if not opportunity_id:
+            logging.error(f"Opportunity not found for Shopify Order ID: {draft_order_id}")
+            return jsonify({'success': False, 'error': 'Opportunity not found'}), 200
 
-    # Find Opportunity using Shopify Order ID
-    opportunity_id = find_opportunity_by_shopify_order_id(draft_order_id)
-    if not opportunity_id:
-        return jsonify({'error': 'Opportunity not found'}), 404
+        # Find Inventory Item using Variant ID
+        inventory_id = find_inventory_by_variant_id(new_variant_id)
+        if not inventory_id:
+            logging.error(f"Inventory item not found for Variant ID: {new_variant_id}")
+            return jsonify({'success': False, 'error': 'Inventory item not found'}), 200
 
-    # Find Inventory Item using Variant ID
-    inventory_id = find_inventory_by_variant_id(new_variant_id)
-    if not inventory_id:
-        return jsonify({'error': 'Inventory item not found'}), 404
+        # Find Opportunity Item using Opportunity ID
+        opportunity_item_id = find_opportunity_item_by_opportunity_id(opportunity_id)
+        if not opportunity_item_id:
+            logging.error(f"Opportunity item not found for Opportunity ID: {opportunity_id}")
+            return jsonify({'success': False, 'error': 'Opportunity item not found'}), 200
 
-    # Find Opportunity Item using Opportunity ID
-    opportunity_item_id = find_opportunity_item_by_opportunity_id(opportunity_id)
-    if not opportunity_item_id:
-        return jsonify({'error': 'Opportunity item not found'}), 404
+        # Update Opportunity Item
+        update_result = update_opportunity_item(opportunity_item_id, inventory_id, quantity)
+        logging.info(f"Successfully updated Opportunity Item: {update_result}")
 
-    # Update Opportunity Item
-    update_result = update_opportunity_item(opportunity_item_id, inventory_id, quantity)
+        return jsonify({'success': True, 'result': update_result}), 200
 
-    return jsonify(update_result)
+    except Exception as e:
+        logging.error(f"Error processing order update: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 200
