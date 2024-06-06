@@ -230,12 +230,11 @@ def handle_product_update():
         print(f"Error parsing JSON or extracting data: {e}")
         abort(400)
 
-    # Check if all updates were successful
-    if all(success for _, success in updates):
-        return jsonify(success=True), 200
+    failed_updates = [variant_id for variant_id, success in updates if not success]
+    if failed_updates:
+        return jsonify(success=False, error="Failed to update Salesforce", failed_variants=failed_updates), 200
     else:
-        failed_updates = [variant_id for variant_id, success in updates if not success]
-        return jsonify(success=False, error="Failed to update Salesforce", failed_variants=failed_updates), 500
+        return jsonify(success=True), 200
     
 @app.route('/webhook/salesforce/create_shopify_order', methods=['POST'])
 def create_shopify_order():
