@@ -292,12 +292,12 @@ def create_opportunity_item(opportunity_id, inventory_id, quantity):
         'Inventory__c': inventory_id,
         'Quantity__c': quantity
     }
-    result = sf.insert('Opportunity_Item__c', new_item)
+    result = sf.Opportunity_Item__c.create(new_item)
     return result
 
 def delete_opportunity_item(opportunity_item_id):
     # Logic to delete an opportunity item
-    result = sf.delete('Opportunity_Item__c', opportunity_item_id)
+    result = sf.Opportunity_Item__c.delete(opportunity_item_id)
     return result
 
 def update_opportunity_item(opportunity_item_id, inventory_id, quantity):
@@ -307,7 +307,7 @@ def update_opportunity_item(opportunity_item_id, inventory_id, quantity):
         'Inventory__c': inventory_id,
         'Quantity__c': quantity
     }
-    result = sf.update('Opportunity_Item__c', updated_item)
+    result = sf.Opportunity_Item__c.update(opportunity_item_id, updated_item)
     return result
 
 def update_opportunity_sf(new_stage, opp_id):
