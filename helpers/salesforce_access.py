@@ -303,7 +303,6 @@ def delete_opportunity_item(opportunity_item_id):
 def update_opportunity_item(opportunity_item_id, inventory_id, quantity):
     # Logic to update an existing opportunity item
     updated_item = {
-        'Id': opportunity_item_id,
         'Inventory__c': inventory_id,
         'Quantity__c': quantity
     }
