@@ -393,7 +393,7 @@ def shopify_webhook():
             # Check if there is a corresponding opportunity item
             if opportunity_items:
                 opportunity_item_id = opportunity_items.pop(0)['Id']
-                update_result = update_opportunity_item(opportunity_item_id, inventory_id, quantity, price)
+                update_result = update_opportunity_item(opportunity_item_id, inventory_id, quantity)
                 logging.info(f"Successfully updated Opportunity Item: {update_result}")
                 updated_items.append(update_result)
             else:
