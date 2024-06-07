@@ -381,21 +381,24 @@ def shopify_webhook():
             new_variant_id = line_item['variant_id']
             quantity = line_item['quantity']
             
-            # Find Inventory Item using Variant ID
-            inventory_id = find_inventory_by_variant_id(new_variant_id)
-            if not inventory_id:
+            # Find Inventory Item using Variant ID and get price
+            inventory_item = find_inventory_by_variant_id(new_variant_id)
+            if not inventory_item:
                 logging.error(f"Inventory item not found for Variant ID: {new_variant_id}")
                 continue
+            
+            inventory_id = inventory_item['Id']
+            price = inventory_item['Price__c']
             
             # Check if there is a corresponding opportunity item
             if opportunity_items:
                 opportunity_item_id = opportunity_items.pop(0)['Id']
-                update_result = update_opportunity_item(opportunity_item_id, inventory_id, quantity)
+                update_result = update_opportunity_item(opportunity_item_id, inventory_id, quantity, price)
                 logging.info(f"Successfully updated Opportunity Item: {update_result}")
                 updated_items.append(update_result)
             else:
                 # If no more opportunity items to update, create new opportunity item
-                create_result = create_opportunity_item(opportunity_id, inventory_id, quantity)
+                create_result = create_opportunity_item(opportunity_id, inventory_id, quantity, price)
                 logging.info(f"Successfully created new Opportunity Item: {create_result}")
                 updated_items.append(create_result)
 

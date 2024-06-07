@@ -272,10 +272,10 @@ def find_opportunity_by_shopify_order_id(shopify_order_id):
     return None
 
 def find_inventory_by_variant_id(variant_id):
-    query = f"SELECT Id FROM Inventory__c WHERE Id__c = '{variant_id}'"
+    query = f"SELECT Id, Price__c FROM Inventory__c WHERE Id__c = '{variant_id}'"
     result = sf.query(query)
     if result['records']:
-        return result['records'][0]['Id']
+        return result['records'][0]
     return None
 
 def find_opportunity_items_by_opportunity_id(opportunity_id):
@@ -285,12 +285,13 @@ def find_opportunity_items_by_opportunity_id(opportunity_id):
         return result['records']
     return []
 
-def create_opportunity_item(opportunity_id, inventory_id, quantity):
+def create_opportunity_item(opportunity_id, inventory_id, quantity, price):
     # Logic to create a new opportunity item
     new_item = {
         'Opportunity__c': opportunity_id,
         'Inventory__c': inventory_id,
-        'Quantity__c': quantity
+        'Quantity__c': quantity,
+        'Price__c': price
     }
     result = sf.Opportunity_Item__c.create(new_item)
     return result
