@@ -15,7 +15,7 @@ import logging
 import sys
 from flask import Flask, request, redirect, jsonify
 from dotenv import load_dotenv
-from helpers.salesforce_access import find_user_via_opportunity_id, update_payment_history, update_salesforce, create_draft_order, complete_draft_order, update_salesforce_account, find_opportunity_by_shopify_order_id, find_inventory_by_variant_id, find_opportunity_item_by_opportunity_id, update_opportunity_item, find_user_via_merchant_order_id, update_opportunity_sf
+from helpers.salesforce_access import find_user_via_opportunity_id, update_payment_history, update_salesforce, create_draft_order, complete_draft_order, update_salesforce_account, find_opportunity_by_shopify_order_id, find_inventory_by_variant_id, find_opportunity_items_by_opportunity_id, update_opportunity_item, find_user_via_merchant_order_id, update_opportunity_sf, create_opportunity_item, delete_opportunity_item
 from helpers.MPU_payment import verify_payment_response
 
 load_dotenv()
@@ -359,8 +359,7 @@ def handle_new_customer():
 def shopify_webhook():
     data = request.json
     draft_order_id = data['id']
-    new_variant_id = data['line_items'][0]['variant_id']
-    quantity = data['line_items'][0]['quantity']
+    line_items = data['line_items']
     
     try:
         # Find Opportunity using Shopify Order ID
@@ -369,23 +368,44 @@ def shopify_webhook():
             logging.error(f"Opportunity not found for Shopify Order ID: {draft_order_id}")
             return jsonify({'success': False, 'error': 'Opportunity not found'}), 200
 
-        # Find Inventory Item using Variant ID
-        inventory_id = find_inventory_by_variant_id(new_variant_id)
-        if not inventory_id:
-            logging.error(f"Inventory item not found for Variant ID: {new_variant_id}")
-            return jsonify({'success': False, 'error': 'Inventory item not found'}), 200
+        # Fetch all opportunity items related to the opportunity
+        opportunity_items = find_opportunity_items_by_opportunity_id(opportunity_id)
+        if not opportunity_items:
+            logging.error(f"Opportunity items not found for Opportunity ID: {opportunity_id}")
+            return jsonify({'success': False, 'error': 'Opportunity items not found'}), 200
 
-        # Find Opportunity Item using Opportunity ID
-        opportunity_item_id = find_opportunity_item_by_opportunity_id(opportunity_id)
-        if not opportunity_item_id:
-            logging.error(f"Opportunity item not found for Opportunity ID: {opportunity_id}")
-            return jsonify({'success': False, 'error': 'Opportunity item not found'}), 200
+        updated_items = []
 
-        # Update Opportunity Item
-        update_result = update_opportunity_item(opportunity_item_id, inventory_id, quantity)
-        logging.info(f"Successfully updated Opportunity Item: {update_result}")
+        # Iterate over each line item from the Shopify order
+        for line_item in line_items:
+            new_variant_id = line_item['variant_id']
+            quantity = line_item['quantity']
+            
+            # Find Inventory Item using Variant ID
+            inventory_id = find_inventory_by_variant_id(new_variant_id)
+            if not inventory_id:
+                logging.error(f"Inventory item not found for Variant ID: {new_variant_id}")
+                continue
+            
+            # Check if there is a corresponding opportunity item
+            if opportunity_items:
+                opportunity_item_id = opportunity_items.pop(0)['Id']
+                update_result = update_opportunity_item(opportunity_item_id, inventory_id, quantity)
+                logging.info(f"Successfully updated Opportunity Item: {update_result}")
+                updated_items.append(update_result)
+            else:
+                # If no more opportunity items to update, create new opportunity item
+                create_result = create_opportunity_item(opportunity_id, inventory_id, quantity)
+                logging.info(f"Successfully created new Opportunity Item: {create_result}")
+                updated_items.append(create_result)
 
-        return jsonify({'success': True, 'result': update_result}), 200
+        # Handle remaining opportunity items if any
+        for remaining_item in opportunity_items:
+            # Optionally: delete or mark as inactive if there's no corresponding Shopify line item
+            delete_result = delete_opportunity_item(remaining_item['Id'])
+            logging.info(f"Successfully deleted Opportunity Item: {delete_result}")
+
+        return jsonify({'success': True, 'result': updated_items}), 200
 
     except Exception as e:
         logging.error(f"Error processing order update: {e}")

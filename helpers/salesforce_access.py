@@ -278,20 +278,37 @@ def find_inventory_by_variant_id(variant_id):
         return result['records'][0]['Id']
     return None
 
-def find_opportunity_item_by_opportunity_id(opportunity_id):
+def find_opportunity_items_by_opportunity_id(opportunity_id):
     query = f"SELECT Id FROM Opportunity_Item__c WHERE Opportunity__c = '{opportunity_id}'"
     result = sf.query(query)
     if result['records']:
-        return result['records'][0]['Id']
-    return None
+        return result['records']
+    return []
 
-def update_opportunity_item(opportunity_item_id, inventory_id, quantity):
-    data = {
+def create_opportunity_item(opportunity_id, inventory_id, quantity):
+    # Logic to create a new opportunity item
+    new_item = {
+        'Opportunity__c': opportunity_id,
         'Inventory__c': inventory_id,
         'Quantity__c': quantity
     }
-    update_result = sf.Opportunity_Item__c.update(opportunity_item_id, data)
-    return update_result
+    result = sf.insert('Opportunity_Item__c', new_item)
+    return result
+
+def delete_opportunity_item(opportunity_item_id):
+    # Logic to delete an opportunity item
+    result = sf.delete('Opportunity_Item__c', opportunity_item_id)
+    return result
+
+def update_opportunity_item(opportunity_item_id, inventory_id, quantity):
+    # Logic to update an existing opportunity item
+    updated_item = {
+        'Id': opportunity_item_id,
+        'Inventory__c': inventory_id,
+        'Quantity__c': quantity
+    }
+    result = sf.update('Opportunity_Item__c', updated_item)
+    return result
 
 def update_opportunity_sf(new_stage, opp_id):
     try:
