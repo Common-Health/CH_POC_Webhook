@@ -320,11 +320,14 @@ def create_shopify_order():
 
 @app.route('/webhook/salesforce/process_opportunity', methods=['POST'])
 def complete_shopify_order():
-    data = request.json
-    opportunity_id = data.get('opportunityId')
-    response = complete_draft_order(opportunity_id)
+    try:
+        data = request.json
+        opportunity_id = data.get('opportunityId')
+        response = complete_draft_order(opportunity_id)
 
-    return response
+        return response
+    except Exception as e:
+        return str(e)
 
 
 @app.route('/webhook/shopify/customer_create', methods=['POST'])
