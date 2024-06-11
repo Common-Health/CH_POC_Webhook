@@ -115,14 +115,16 @@ def check_payment_mpu():
     if request.method == 'POST':
         try:
             logging.info("Received POST request at /api/check_payment/MPU")
-            
+            trans_ref = request.form.get('tranRef')
+            if trans_ref is None:
+                trans_ref = request.form.get('transRef')
             response_values = {
                 'merchantID': request.form.get('merchantID'),
                 'respCode': request.form.get('respCode'),
                 'pan': request.form.get('pan'),
                 'amount': request.form.get('amount'),
                 'invoiceNo': request.form.get('invoiceNo'),
-                'transRef': request.form.get('transRef'),
+                'transRef': trans_ref,
                 'approvalCode': request.form.get('approvalCode'),
                 'dateTime': request.form.get('dateTime'),
                 'status': request.form.get('status'),
