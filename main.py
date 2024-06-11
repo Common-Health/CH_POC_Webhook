@@ -122,7 +122,7 @@ def check_payment_mpu():
                 'pan': request.form.get('pan'),
                 'amount': request.form.get('amount'),
                 'invoiceNo': request.form.get('invoiceNo'),
-                'transRef': request.form.get('tranRef'),
+                'transRef': request.form.get('transRef'),
                 'approvalCode': request.form.get('approvalCode'),
                 'dateTime': request.form.get('dateTime'),
                 'status': request.form.get('status'),

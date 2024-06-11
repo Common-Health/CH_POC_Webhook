@@ -15,8 +15,18 @@ def verify_payment_response(response_values, secret_key):
     # Exclude the hashValue from the response
     response_values_to_hash = {k: v for k, v in response_values.items() if k != 'hashValue'}
 
-    # Step 1: Create a list of values to be hashed, removing spaces from each value
-    values_list = [v.replace(' ', '') for v in response_values_to_hash.values()]
+    # Step 1: Create a list of values to be hashed
+    values_list = []
+    for value in response_values_to_hash.values():
+        # Ensure the value is a string
+        if value is not None:
+            value = str(value)
+            if ' ' in value.strip():
+                # If value contains spaces and is likely a sentence, don't remove spaces
+                values_list.append(value)
+            else:
+                # Otherwise, remove spaces
+                values_list.append(value.replace(' ', ''))
 
     # Step 2: Sort the list using case-sensitive ordinal string comparison
     values_list.sort()

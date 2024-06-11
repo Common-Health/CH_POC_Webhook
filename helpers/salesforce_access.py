@@ -78,7 +78,7 @@ def update_payment_history(payment_history_id, merch_order_id, opportunity_id, m
 
         # Data to be inserted into Payment_History__c
         payment_data = {
-            'Total_Amount_Paid__c': int(total_amount),
+            'Total_Amount_Paid__c': total_amount,
             'Dinger_Transaction_ID__c': transaction_id,
             'Dinger_Status__c': status,
             'Opportunity__c':opportunity_id,
