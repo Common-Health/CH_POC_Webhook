@@ -114,6 +114,8 @@ def convert_padded_amount(padded_amount):
 def check_payment_mpu():
     if request.method == 'POST':
         try:
+            logging.info("Received POST request at /api/check_payment/MPU")
+            
             response_values = {
                 'merchantID': request.form.get('merchantID'),
                 'respCode': request.form.get('respCode'),
@@ -132,6 +134,7 @@ def check_payment_mpu():
                 'hashValue': request.form.get('hashValue')  # Assuming the hashValue is also provided in the request
             }
 
+            logging.info(f"Received response values: {response_values}")
             verification_result = verify_payment_response(response_values, SECRET_KEY)
 
             response = {
@@ -140,7 +143,10 @@ def check_payment_mpu():
                 "Expected Hash Value": verification_result['expected_hash_value'],
                 "Hashes match": verification_result['hashes_match']
             }
-            if response["Hashes match"] == False:
+            logging.info(f"Verification result: {response}")
+
+            if not response["Hashes match"]:
+                logging.warning("Hash values do not match. Aborting request.")
                 abort(401)
 
             merch_id = response_values['invoiceNo']
@@ -155,15 +161,18 @@ def check_payment_mpu():
             payment_history_id = user_details["payment_history_id"]
             name = user_details['name']
 
-            update_payment_history(payment_history_id,merch_id,opportunity_id,method_name,provider_name,total_amount,transaction_id,status)
+            update_payment_history(payment_history_id, merch_id, opportunity_id, method_name, provider_name, total_amount, transaction_id, status)
+
             if status.lower() == 'ap':
-                pay_status= f"Hi {name}, your payment was successful. Thank you! Transaction details are available in your account."
+                pay_status = f"Hi {name}, your payment was successful. Thank you! Transaction details are available in your account."
             elif status.lower() == 'de':
-                pay_status= f"Hi {name}, your payment via MPU was declined. Please check your details and try again. Contact support if you require assistance"
+                pay_status = f"Hi {name}, your payment via MPU was declined. Please check your details and try again. Contact support if you require assistance."
             elif status.lower() == 'fa':
-                pay_status= f"Hi {name}, your payment attempt via MPU failed. Please check your details and try again. Contact support if you require assistance"
+                pay_status = f"Hi {name}, your payment attempt via MPU failed. Please check your details and try again. Contact support if you require assistance."
             else:
-                pay_status = f"Hi {name}, your payment for medication is currently on pending. We will inform you once we receive your payment. Thank you!"
+                pay_status = f"Hi {name}, your payment for medication is currently pending. We will inform you once we receive your payment. Thank you!"
+
+            logging.info(f"Notification message: {pay_status}")
 
             message = messaging.Message(
                 token=fcm_token,
@@ -179,12 +188,16 @@ def check_payment_mpu():
 
             try:
                 send_fcm_notification(message)
+                logging.info("FCM notification sent successfully")
             except Exception as e:
-                print(f"Failed to send FCM notification: {str(e)}")
+                logging.error(f"Failed to send FCM notification: {str(e)}", exc_info=True)
+
             return "success"
         except Exception as e:
+            logging.error(f"Error in check_payment_mpu: {str(e)}", exc_info=True)
             return jsonify({"error": str(e)}), 500
     else:
+        logging.warning("Method not allowed for /api/check_payment/MPU")
         return jsonify({"error": "Method not allowed"}), 405
 
 @app.route('/api/check_payment', methods=['POST'])

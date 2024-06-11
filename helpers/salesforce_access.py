@@ -66,12 +66,19 @@ def update_payment_history(payment_history_id, merch_order_id, opportunity_id, m
         else:
             return jsonify({"error": "No Account found for the given Opportunity ID"}), 404
 
+        if status.lower() == 'pay_success' or status.lower() == 'ap':
+            status = 'SUCCESS'
+            pay_status = True
+        elif status.lower() == 'wait_pay' or status.lower() == 'rs' or status.lower() == 'se':
+            status = 'PENDING'
+            pay_status = False
+        else:
+            status = 'FAILED'
+            pay_status = False
+
         # Data to be inserted into Payment_History__c
         payment_data = {
-            'Merchant_Order_ID__c': merch_order_id,
-            'Method_Name__c': method_name,
-            'Provider_Name__c': provider_name,
-            'Total_Amount_Paid__c': total_amount,
+            'Total_Amount_Paid__c': int(total_amount),
             'Dinger_Transaction_ID__c': transaction_id,
             'Dinger_Status__c': status,
             'Opportunity__c':opportunity_id,
@@ -80,11 +87,6 @@ def update_payment_history(payment_history_id, merch_order_id, opportunity_id, m
 
         # Insert the new Payment History record
         sf.Payment_History__c.update(payment_history_id, payment_data)
-
-        if status.lower() == 'pay_success' or status.lower() == 'ap':
-            pay_status = True
-        else:
-            pay_status = False
 
         payment_status = {
             'Payment_Status__c': pay_status
