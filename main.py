@@ -73,13 +73,19 @@ def send_message():
         message = received_data.get('message')
         notif_title = received_data.get('title')
         opportunity_id = received_data.get('opportunityId')
+        fcm_token = received_data.get('fcmToken')
         data = received_data.get('data', {})  # Get the 'data' dictionary if present, otherwise an empty dict
         
-        if not message or not notif_title or not opportunity_id:
-            return jsonify(error='Message, title, and opportunityId are required fields'), 400
+        if not message or not notif_title:
+            return jsonify(error='Message and title are required fields'), 400
 
-        user_details = find_user_via_opportunity_id(opportunity_id)
-        fcm_token = user_details['fcm_token']
+        if not opportunity_id and not fcm_token:
+            return jsonify(error='Either opportunityId or fcmToken must be provided'), 400
+        
+        if opportunity_id:
+            user_details = find_user_via_opportunity_id(opportunity_id)
+            fcm_token = user_details['fcm_token']
+        
         notification = messaging.Message(
             token=fcm_token,
             notification=messaging.Notification(
@@ -90,7 +96,7 @@ def send_message():
         )
 
         response = messaging.send(notification)
-        if notif_title == "Refill Reminder":
+        if notif_title == "Refill Reminder" and opportunity_id:
             update_opportunity_sf("Ordered", opportunity_id)
         return jsonify(success=True, response=response), 200
 
