@@ -94,7 +94,7 @@ def send_message():
             ),
             data=data  # Attach the optional data dictionary
         )
-
+        logging.info(message)
         response = messaging.send(notification)
         if notif_title == "Refill Reminder" and opportunity_id:
             update_opportunity_sf("Ordered", opportunity_id)
