@@ -22,7 +22,7 @@ load_dotenv()
 CLIENT_SECRET=os.getenv("WEBHOOK_SIGN_KEY")
 my_credentials = {
     "type": "service_account",
-    "project_id": "common-health-app",
+    "project_id": "common-health-poc",
     "private_key_id": os.getenv("PRIVATE_KEY_ID"),
     "private_key": os.getenv("PRIVATE_KEY_G").replace(r'\n', '\n'),
     "client_email": os.getenv("CLIENT_EMAIL"),
