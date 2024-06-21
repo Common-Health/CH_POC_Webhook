@@ -13,6 +13,7 @@ import os
 import json
 import logging
 import sys
+import uuid
 from flask import Flask, request, redirect, jsonify
 from dotenv import load_dotenv
 from helpers.salesforce_access import find_user_via_opportunity_id, update_payment_history, update_salesforce, create_draft_order, complete_draft_order, update_salesforce_account, find_opportunity_by_shopify_order_id, find_inventory_by_variant_id, find_opportunity_items_by_opportunity_id, update_opportunity_item, find_user_via_merchant_order_id, update_opportunity_sf, create_opportunity_item, delete_opportunity_item
@@ -90,6 +91,10 @@ def get_app(name=None):
     except ValueError:
         return None
 
+def generate_notification_id():
+    # Generate a unique notification ID
+    return str(uuid.uuid4())
+
 def send_fcm_notification(message):
     try:
         # Send message with development app (default)
@@ -137,6 +142,9 @@ def send_message():
         opportunity_id = received_data.get('opportunityId')
         fcm_token = received_data.get('fcmToken')
         data = received_data.get('data', {})  # Get the 'data' dictionary if present, otherwise an empty dict
+
+        notification_id = generate_notification_id()
+        data['notification_id'] = notification_id
         
         if not message or not notif_title:
             return jsonify(error='Message and title are required fields'), 400
@@ -240,6 +248,7 @@ def check_payment_mpu():
             opportunity_id = user_details["opportunity_id"]
             payment_history_id = user_details["payment_history_id"]
             name = user_details['name']
+            notification_id = generate_notification_id()
 
             update_payment_history(payment_history_id, merch_id, opportunity_id, method_name, provider_name, total_amount, transaction_id, status)
 
@@ -272,7 +281,8 @@ def check_payment_mpu():
                 ),
                 data={
                     "orderId": opportunity_id,
-                    "action": "redirect_to_orders"
+                    "action": "redirect_to_orders",
+                    "notification_id": notification_id
                 }
             )
 
@@ -315,6 +325,7 @@ def check_payment_status():
             opportunity_id = user_details["opportunity_id"]
             payment_history_id = user_details["payment_history_id"]
             name = user_details['name']
+            notification_id = generate_notification_id()
             update_payment_history(payment_history_id, merch_order_id,opportunity_id,method_name,provider_name,total_amount, transaction_id,status)
 
             if status.lower() == 'pay_success':
@@ -340,7 +351,8 @@ def check_payment_status():
                 ),
                 data={
                     "orderId": opportunity_id,
-                    "action": "redirect_to_orders"
+                    "action": "redirect_to_orders",
+                    "notification_id": notification_id
                 }
             )
 
@@ -415,6 +427,7 @@ def create_shopify_order():
         user_details = find_user_via_opportunity_id(opportunity_id)
         fcm_token = user_details['fcm_token']
         name = user_details['name']
+        notification_id = generate_notification_id()
         message = messaging.Message(
             token=fcm_token,
             notification=messaging.Notification(
@@ -432,7 +445,8 @@ def create_shopify_order():
                 )
             ),
             data={
-                "action": "refresh_orders"
+                "action": "refresh_orders",
+                "notification_id": notification_id
             }
         )
 
