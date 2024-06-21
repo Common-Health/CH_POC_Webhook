@@ -154,6 +154,16 @@ def send_message():
                 title=notif_title,
                 body=message
             ),
+            android=messaging.AndroidConfig(
+                priority='high'
+            ),
+            apns=messaging.APNSConfig(
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(
+                        content_available=True
+                    )
+                )
+            ),
             data=data  # Attach the optional data dictionary
         )
         logging.info(message)
@@ -250,6 +260,16 @@ def check_payment_mpu():
                     title='Payment Update',
                     body=pay_status
                 ),
+                android=messaging.AndroidConfig(
+                    priority='high'
+                ),
+                apns=messaging.APNSConfig(
+                    payload=messaging.APNSPayload(
+                        aps=messaging.Aps(
+                            content_available=True
+                        )
+                    )
+                ),
                 data={
                     "orderId": opportunity_id,
                     "action": "redirect_to_orders"
@@ -307,6 +327,16 @@ def check_payment_status():
                 notification=messaging.Notification(
                     title='Payment Update',
                     body=pay_status
+                ),
+                android=messaging.AndroidConfig(
+                    priority='high'
+                ),
+                apns=messaging.APNSConfig(
+                    payload=messaging.APNSPayload(
+                        aps=messaging.Aps(
+                            content_available=True
+                        )
+                    )
                 ),
                 data={
                     "orderId": opportunity_id,
@@ -390,6 +420,16 @@ def create_shopify_order():
             notification=messaging.Notification(
                 title='New Orders',
                 body=f'Hi {name}, you have new orders on your Account. Please check the Orders tab to see your pending orders.'
+            ),
+            android=messaging.AndroidConfig(
+                priority='high'
+            ),
+            apns=messaging.APNSConfig(
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(
+                        content_available=True
+                    )
+                )
             ),
             data={
                 "action": "refresh_orders"
