@@ -145,6 +145,8 @@ def send_message():
 
         notification_id = generate_notification_id()
         data['notification_id'] = notification_id
+        data['title'] = notif_title
+        data['body'] = message
         
         if not message or not notif_title:
             return jsonify(error='Message and title are required fields'), 400
@@ -282,7 +284,9 @@ def check_payment_mpu():
                 data={
                     "orderId": opportunity_id,
                     "action": "redirect_to_orders",
-                    "notification_id": notification_id
+                    "notification_id": notification_id,
+                    "title":'Payment Update',
+                    "body":pay_status
                 }
             )
 
@@ -352,7 +356,9 @@ def check_payment_status():
                 data={
                     "orderId": opportunity_id,
                     "action": "redirect_to_orders",
-                    "notification_id": notification_id
+                    "notification_id": notification_id,
+                    "title":'Payment Update',
+                    "body":pay_status
                 }
             )
 
@@ -446,7 +452,9 @@ def create_shopify_order():
             ),
             data={
                 "action": "refresh_orders",
-                "notification_id": notification_id
+                "notification_id": notification_id,
+                "title":'New Orders',
+                "body":f'Hi {name}, you have new orders on your Account. Please check the Orders tab to see your pending orders.'
             }
         )
 
