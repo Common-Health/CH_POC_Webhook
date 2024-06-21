@@ -20,23 +20,58 @@ from helpers.MPU_payment import verify_payment_response
 
 load_dotenv()
 CLIENT_SECRET=os.getenv("WEBHOOK_SIGN_KEY")
-my_credentials = {
+dev_credentials = {
     "type": "service_account",
-    "project_id": "common-health-poc",
-    "private_key_id": os.getenv("PRIVATE_KEY_ID"),
-    "private_key": os.getenv("PRIVATE_KEY_G").replace(r'\n', '\n'),
-    "client_email": os.getenv("CLIENT_EMAIL"),
-    "client_id": os.getenv("CLIENT_ID"),
+    "project_id": os.getenv("DEV_PROJECT_ID"),
+    "private_key_id": os.getenv("DEV_PRIVATE_KEY_ID"),
+    "private_key": os.getenv("DEV_PRIVATE_KEY_G").replace(r'\n', '\n'),
+    "client_email": os.getenv("DEV_CLIENT_EMAIL"),
+    "client_id": os.getenv("DEV_CLIENT_ID"),
     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
     "token_uri": "https://oauth2.googleapis.com/token",
-    "auth_provider_x509_cert_url": os.getenv("AUTH_PROVIDER_X509_CERT_URL"),
-    "client_x509_cert_url": os.getenv("CLIENT_X509_CERT_URL")
+    "auth_provider_x509_cert_url": os.getenv("DEV_AUTH_PROVIDER_X509_CERT_URL"),
+    "client_x509_cert_url": os.getenv("DEV_CLIENT_X509_CERT_URL")
 }
-db_url=os.getenv('DB_URL')
-cred= credentials.Certificate(my_credentials)
-firebase_admin.initialize_app(cred, {
-    'databaseURL': db_url
-})
+dev_db_url = os.getenv('DEV_DB_URL')
+
+prod_credentials = {
+    "type": "service_account",
+    "project_id": os.getenv("PROD_PROJECT_ID"),
+    "private_key_id": os.getenv("PROD_PRIVATE_KEY_ID"),
+    "private_key": os.getenv("PROD_PRIVATE_KEY_G").replace(r'\n', '\n'),
+    "client_email": os.getenv("PROD_CLIENT_EMAIL"),
+    "client_id": os.getenv("PROD_CLIENT_ID"),
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": os.getenv("PROD_AUTH_PROVIDER_X509_CERT_URL"),
+    "client_x509_cert_url": os.getenv("PROD_CLIENT_X509_CERT_URL")
+}
+prod_db_url = os.getenv('PROD_DB_URL')
+
+def initialize_firebase(credentials_path, db_url, name=None):
+    try:
+        # Check if the app is already initialized
+        if name:
+            firebase_admin.get_app(name)
+            print(f'App {name} already initialized.')
+        else:
+            firebase_admin.get_app()
+            print('Default app already initialized.')
+    except ValueError:
+        cred = credentials.Certificate(credentials_path)
+        options = {
+            'databaseURL': db_url
+        }
+        
+        if name:
+            firebase_admin.initialize_app(cred, options, name=name)
+            print(f'Initialized app {name} with DB URL: {db_url}')
+        else:
+            firebase_admin.initialize_app(cred, options)
+            print(f'Initialized default app with DB URL: {db_url}')
+
+# Initialize with development credentials
+initialize_firebase(dev_credentials, dev_db_url)
 CUSTOM_HEADER = os.getenv('CUSTOM_HEADER')
 SECRET_KEY = os.getenv('SECRET_KEY')
 app = Flask(__name__)
@@ -48,11 +83,38 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)  # Log to standard output
     ]
 )
-    
+
+def get_app(name=None):
+    try:
+        return firebase_admin.get_app(name=name)
+    except ValueError:
+        return None
+
 def send_fcm_notification(message):
-    # Send a message to the device corresponding to the provided token
-    response = messaging.send(message)
-    print('Successfully sent message:', response)
+    try:
+        # Send message with development app (default)
+        response = messaging.send(message)
+        print('Successfully sent message with development credentials:', response)
+        return response
+    except Exception as e:
+        print('Failed to send message with development credentials:', e)
+        
+        # Fallback to production credentials
+        try:
+            initialize_firebase(prod_credentials, prod_db_url, "prod")
+            prod_app = firebase_admin.get_app("prod")
+            
+            response = messaging.send(message, app=prod_app)
+            print('Successfully sent message with production credentials:', response)
+            return response
+        except Exception as prod_e:
+            print('Failed to send message with production credentials:', prod_e)
+        finally:
+            # Ensure the development app is set back as default
+            try:
+                initialize_firebase(dev_credentials, dev_db_url)
+            except ValueError as dev_e:
+                print('Development app reinitialization failed:', dev_e)
 
 @app.route('/api/send_fcm_message', methods=['POST'])
 def send_message():
@@ -95,7 +157,7 @@ def send_message():
             data=data  # Attach the optional data dictionary
         )
         logging.info(message)
-        response = messaging.send(notification)
+        response = send_fcm_notification(notification)
         if notif_title == "Refill Reminder" and opportunity_id:
             update_opportunity_sf("Ordered", opportunity_id)
         return jsonify(success=True, response=response), 200
