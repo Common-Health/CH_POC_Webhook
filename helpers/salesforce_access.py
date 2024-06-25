@@ -16,21 +16,24 @@ BASEURL = f"https://{os.getenv('SHOP_URL')}/admin/api/{os.getenv('API_VERSION')}
 
 def find_user_via_opportunity_id(opportunity_id):
     query = f"""
-    SELECT AccountId
+    SELECT AccountId, CloseDate, Delivery_SLA_Date__c
     FROM Opportunity
     WHERE Id = '{opportunity_id}'
     """
     result = sf.query(query)
     account_id = result['records'][0]['AccountId']
+    close_date = result['records'][0]['CloseDate']
+    delivery_date = result['records'][0]['Delivery_SLA_Date__c']
     account_query = f"""
-    SELECT Name, FCM_Token__c
+    SELECT Name, FCM_Token__c, Preferred_Language__c
     FROM Account 
     WHERE ID = '{account_id}'
     """
     result = sf.query(account_query)
     fcm_token = result['records'][0]['FCM_Token__c']
     name = result['records'][0]['Name']
-    return {"fcm_token": fcm_token, "name":name}
+    language = result['records'][0]['Preferred_Language__c']
+    return {"fcm_token": fcm_token, "name":name, "language":language, "close_date": close_date, "delivery_date":delivery_date}
 
 def find_user_via_merchant_order_id(merchant_order_id):
     query = f"""
@@ -43,14 +46,15 @@ def find_user_via_merchant_order_id(merchant_order_id):
     opportunity_id = result['records'][0]['Opportunity__c']
     payment_history_id = result['records'][0]['Id']
     account_query = f"""
-    SELECT Name, FCM_Token__c
+    SELECT Name, FCM_Token__c, Preferred_Language__c
     FROM Account 
     WHERE ID = '{account_id}'
     """
     result = sf.query(account_query)
     fcm_token = result['records'][0]['FCM_Token__c']
     name = result['records'][0]['Name']
-    return {"fcm_token": fcm_token, "opportunity_id":opportunity_id, "payment_history_id":payment_history_id, "name":name}
+    language = result['records'][0]['Preferred_Language__c']
+    return {"fcm_token": fcm_token, "opportunity_id":opportunity_id, "payment_history_id":payment_history_id, "name":name, "language":language}
 
 def update_payment_history(payment_history_id, merch_order_id, opportunity_id, method_name, provider_name, total_amount, transaction_id, status):
     try:

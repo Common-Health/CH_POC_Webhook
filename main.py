@@ -14,6 +14,7 @@ import json
 import logging
 import sys
 import uuid
+import requests
 from flask import Flask, request, redirect, jsonify
 from dotenv import load_dotenv
 from helpers.salesforce_access import find_user_via_opportunity_id, update_payment_history, update_salesforce, create_draft_order, complete_draft_order, update_salesforce_account, find_opportunity_by_shopify_order_id, find_inventory_by_variant_id, find_opportunity_items_by_opportunity_id, update_opportunity_item, find_user_via_merchant_order_id, update_opportunity_sf, create_opportunity_item, delete_opportunity_item
@@ -75,6 +76,9 @@ def initialize_firebase(credentials_path, db_url, name=None):
 initialize_firebase(dev_credentials, dev_db_url)
 CUSTOM_HEADER = os.getenv('CUSTOM_HEADER')
 SECRET_KEY = os.getenv('SECRET_KEY')
+CLOUD_API_KEY = os.getenv('CLOUD_API_KEY')
+SHEET_ID = os.getenv('SHEET_ID')
+SHEET_NAME = os.getenv('SHEET_NAME')
 app = Flask(__name__)
 
 logging.basicConfig(
@@ -84,6 +88,20 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)  # Log to standard output
     ]
 )
+
+def get_notification(language, tag):
+    url = f'https://sheets.googleapis.com/v4/spreadsheets/{SHEET_ID}/values/{SHEET_NAME}?key={CLOUD_API_KEY}'
+    response = requests.get(url)
+    data = response.json()
+
+    headers = data['values'][0]
+    rows = data['values'][1:]
+    
+    for row in rows:
+        record = dict(zip(headers, row))
+        if record['Language'] == language and record['Tag'] == tag:
+            return record
+    return None
 
 def get_app(name=None):
     try:
@@ -157,6 +175,8 @@ def send_message():
         if opportunity_id:
             user_details = find_user_via_opportunity_id(opportunity_id)
             fcm_token = user_details['fcm_token']
+            name = user_details['name']
+            language = user_details['language']
         
         notification = messaging.Message(
             token=fcm_token,
@@ -184,7 +204,239 @@ def send_message():
 
     except Exception as e:
         return jsonify(error=str(e)), 500
+
+@app.route('/api/send_fcm_message/phone_update', methods=['POST'])
+def send_message_phone_update():
+    try:
+        received_data = request.get_json()
+        
+        fcm_token = received_data.get('fcmToken')
+        name = received_data.get('name')
+        language = received_data.get('language')
+        old_phone_number = received_data.get('oldPhoneNumber')
+        new_phone_number = received_data.get('newPhoneNumber')
+        tag = "phone_update"
+
+        if not language:
+            language = "English"
+
+        notification = get_notification(language, tag)
+        data = received_data.get('data', {})  # Get the 'data' dictionary if present, otherwise an empty dict
+
+        if notification:
+            message = notification['Message'].replace("{Name}", name).replace("{maskedOldPhone}", old_phone_number).replace("{maskedNewPhone}", new_phone_number)
+            notif_title = notification['Title']
+
+        notification_id = generate_notification_id()
+        data['notification_id'] = notification_id
+        data['title'] = notif_title
+        data['body'] = message
+        
+        if not message or not notif_title:
+            return jsonify(error='Message and title are required fields'), 400
+
+        if not fcm_token:
+            return jsonify(error='Either opportunityId or fcmToken must be provided'), 400
+        
+        notification = messaging.Message(
+            token=fcm_token,
+            notification=messaging.Notification(
+                title=notif_title,
+                body=message
+            ),
+            android=messaging.AndroidConfig(
+                priority='high'
+            ),
+            apns=messaging.APNSConfig(
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(
+                        content_available=True
+                    )
+                )
+            ),
+            data=data  # Attach the optional data dictionary
+        )
+        logging.info(message)
+        response = send_fcm_notification(notification)
+        return jsonify(success=True, response=response), 200
+
+    except Exception as e:
+        return jsonify(error=str(e)), 500
     
+@app.route('/api/send_fcm_message/refill', methods=['POST'])
+def send_message_refill():
+    try:
+        received_data = request.get_json()
+        
+        opportunity_id = received_data.get('opportunityId')
+        tag = "refill_reminder"
+        user_details = find_user_via_opportunity_id(opportunity_id)
+        fcm_token = user_details['fcm_token']
+        name = user_details['name']
+        language = user_details['language']
+        close_date = user_details['close_date']
+        delivery_date = user_details['delivery_date']
+        data = received_data.get('data', {})  # Get the 'data' dictionary if present, otherwise an empty dict
+
+        if not language:
+            language = "English"
+
+        notification = get_notification(language, tag)
+        if notification:
+            notif_message = notification['Message'].replace("{Name}", name).replace("{closeDate}", close_date).replace("{deliverySLADate}", delivery_date)
+            notif_title = notification['Title']
+
+        notification_id = generate_notification_id()
+        data['notification_id'] = notification_id
+        data['title'] = notif_title
+        data['body'] = notif_message
+        
+        if not notif_message or not notif_title:
+            return jsonify(error='Message and title are required fields'), 400
+
+        if not fcm_token:
+            return jsonify(error='Either opportunityId or fcmToken must be provided'), 400
+        
+        notification = messaging.Message(
+            token=fcm_token,
+            notification=messaging.Notification(
+                title=notif_title,
+                body=notif_message
+            ),
+            android=messaging.AndroidConfig(
+                priority='high'
+            ),
+            apns=messaging.APNSConfig(
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(
+                        content_available=True
+                    )
+                )
+            ),
+            data=data  # Attach the optional data dictionary
+        )
+        logging.info(notif_message)
+        response = send_fcm_notification(notification)
+        return jsonify(success=True, response=response), 200
+
+    except Exception as e:
+        return jsonify(error=str(e)), 500
+    
+@app.route('/api/send_fcm_message/picked_up', methods=['POST'])
+def send_message_picked_up():
+    try:
+        received_data = request.get_json()
+        
+        opportunity_id = received_data.get('opportunityId')
+        opportunity_name = received_data.get('opportunityName')
+        courier = received_data.get('courierName')
+        tag = "picked_up"
+        user_details = find_user_via_opportunity_id(opportunity_id)
+        fcm_token = user_details['fcm_token']
+        language = user_details['language']
+        data = received_data.get('data', {})  # Get the 'data' dictionary if present, otherwise an empty dict
+
+        if not language:
+            language = "English"
+
+        notification = get_notification(language, tag)
+        if notification:
+            notif_message = notification['Message'].replace("{orderNumber}", opportunity_name).replace("{courier}", courier)
+            notif_title = notification['Title']
+
+        notification_id = generate_notification_id()
+        data['notification_id'] = notification_id
+        data['title'] = notif_title
+        data['body'] = notif_message
+        
+        if not notif_message or not notif_title:
+            return jsonify(error='Message and title are required fields'), 400
+
+        if not fcm_token:
+            return jsonify(error='Either opportunityId or fcmToken must be provided'), 400
+        
+        notification = messaging.Message(
+            token=fcm_token,
+            notification=messaging.Notification(
+                title=notif_title,
+                body=notif_message
+            ),
+            android=messaging.AndroidConfig(
+                priority='high'
+            ),
+            apns=messaging.APNSConfig(
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(
+                        content_available=True
+                    )
+                )
+            ),
+            data=data  # Attach the optional data dictionary
+        )
+        logging.info(notif_message)
+        response = send_fcm_notification(notification)
+        return jsonify(success=True, response=response), 200
+
+    except Exception as e:
+        return jsonify(error=str(e)), 500
+    
+@app.route('/api/send_fcm_message/delivered', methods=['POST'])
+def send_message_delivered():
+    try:
+        received_data = request.get_json()
+        
+        opportunity_id = received_data.get('opportunityId')
+        opportunity_name = received_data.get('opportunityName')
+        tag = "delivered"
+        user_details = find_user_via_opportunity_id(opportunity_id)
+        fcm_token = user_details['fcm_token']
+        language = user_details['language']
+        data = received_data.get('data', {})  # Get the 'data' dictionary if present, otherwise an empty dict
+
+        if not language:
+            language = "English"
+
+        notification = get_notification(language, tag)
+        if notification:
+            notif_message = notification['Message'].replace("{orderNumber}", opportunity_name)
+            notif_title = notification['Title']
+
+        notification_id = generate_notification_id()
+        data['notification_id'] = notification_id
+        data['title'] = notif_title
+        data['body'] = notif_message
+        
+        if not notif_message or not notif_title:
+            return jsonify(error='Message and title are required fields'), 400
+
+        if not fcm_token:
+            return jsonify(error='Either opportunityId or fcmToken must be provided'), 400
+        
+        notification = messaging.Message(
+            token=fcm_token,
+            notification=messaging.Notification(
+                title=notif_title,
+                body=notif_message
+            ),
+            android=messaging.AndroidConfig(
+                priority='high'
+            ),
+            apns=messaging.APNSConfig(
+                payload=messaging.APNSPayload(
+                    aps=messaging.Aps(
+                        content_available=True
+                    )
+                )
+            ),
+            data=data  # Attach the optional data dictionary
+        )
+        logging.info(notif_message)
+        response = send_fcm_notification(notification)
+        return jsonify(success=True, response=response), 200
+
+    except Exception as e:
+        return jsonify(error=str(e)), 500
+
 def convert_padded_amount(padded_amount):
     # Remove leading zeros
     amount = padded_amount.lstrip('0')
@@ -250,6 +502,7 @@ def check_payment_mpu():
             opportunity_id = user_details["opportunity_id"]
             payment_history_id = user_details["payment_history_id"]
             name = user_details['name']
+            language = user_details['language']
             notification_id = generate_notification_id()
 
             update_payment_history(payment_history_id, merch_id, opportunity_id, method_name, provider_name, total_amount, transaction_id, status)
@@ -329,6 +582,7 @@ def check_payment_status():
             opportunity_id = user_details["opportunity_id"]
             payment_history_id = user_details["payment_history_id"]
             name = user_details['name']
+            language = user_details['language']
             notification_id = generate_notification_id()
             update_payment_history(payment_history_id, merch_order_id,opportunity_id,method_name,provider_name,total_amount, transaction_id,status)
 
@@ -433,12 +687,23 @@ def create_shopify_order():
         user_details = find_user_via_opportunity_id(opportunity_id)
         fcm_token = user_details['fcm_token']
         name = user_details['name']
+        language = user_details['language']
         notification_id = generate_notification_id()
+        tag="new_order"
+
+        if not language:
+            language = "English"
+
+        notification = get_notification(language, tag)
+        if notification:
+            notif_message = notification['Message'].replace("{Name}", name)
+            notif_title = notification['Title']
+
         message = messaging.Message(
             token=fcm_token,
             notification=messaging.Notification(
-                title='New Orders',
-                body=f'Hi {name}, you have new orders on your Account. Please check the Orders tab to see your pending orders.'
+                title=notif_title,
+                body=notif_message
             ),
             android=messaging.AndroidConfig(
                 priority='high'
@@ -453,8 +718,8 @@ def create_shopify_order():
             data={
                 "action": "refresh_orders",
                 "notification_id": notification_id,
-                "title":'New Orders',
-                "body":f'Hi {name}, you have new orders on your Account. Please check the Orders tab to see your pending orders.'
+                "title":notif_title,
+                "body":notif_message
             }
         )
 
