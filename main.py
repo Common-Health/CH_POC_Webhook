@@ -342,7 +342,7 @@ def send_message_picked_up():
 
         notification = get_notification(language, tag)
         if notification:
-            notif_message = notification['Message'].replace("{orderNumber}", opportunity_name).replace("{courier}", courier). replace("{deliveryTime}", delivery_time)
+            notif_message = notification['Message'].replace("{orderNumber}", opportunity_name).replace("{courier}", courier).replace("{deliveryTime}", delivery_time)
             notif_title = notification['Title']
 
         notification_id = generate_notification_id()
