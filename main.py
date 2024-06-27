@@ -283,7 +283,7 @@ def send_message_refill():
 
         notification = get_notification(language, tag)
         if notification:
-            notif_message = notification['Message'].replace("{Name}", name).replace("{closeDate}", close_date).replace("{deliverySLADate}", delivery_date)
+            notif_message = notification['Message'].replace("{Name}", name).replace("{deliverySLADate}", delivery_date)
             notif_title = notification['Title']
 
         notification_id = generate_notification_id()
@@ -334,6 +334,7 @@ def send_message_picked_up():
         user_details = find_user_via_opportunity_id(opportunity_id)
         fcm_token = user_details['fcm_token']
         language = user_details['language']
+        delivery_time = user_details['delivery_time']
         data = received_data.get('data', {})  # Get the 'data' dictionary if present, otherwise an empty dict
 
         if not language:
@@ -341,7 +342,7 @@ def send_message_picked_up():
 
         notification = get_notification(language, tag)
         if notification:
-            notif_message = notification['Message'].replace("{orderNumber}", opportunity_name).replace("{courier}", courier)
+            notif_message = notification['Message'].replace("{orderNumber}", opportunity_name).replace("{courier}", courier). replace("{deliveryTime}", delivery_time)
             notif_title = notification['Title']
 
         notification_id = generate_notification_id()

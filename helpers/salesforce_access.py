@@ -16,7 +16,7 @@ BASEURL = f"https://{os.getenv('SHOP_URL')}/admin/api/{os.getenv('API_VERSION')}
 
 def find_user_via_opportunity_id(opportunity_id):
     query = f"""
-    SELECT AccountId, CloseDate, Delivery_SLA_Date__c
+    SELECT AccountId, CloseDate, Delivery_SLA_Date__c, Delivery_Time__c
     FROM Opportunity
     WHERE Id = '{opportunity_id}'
     """
@@ -24,6 +24,7 @@ def find_user_via_opportunity_id(opportunity_id):
     account_id = result['records'][0]['AccountId']
     close_date = result['records'][0]['CloseDate']
     delivery_date = result['records'][0]['Delivery_SLA_Date__c']
+    delivery_time = result['records'][0]['Delivery_Time__c']
     account_query = f"""
     SELECT Name, FCM_Token__c, Preferred_Language__c
     FROM Account 
@@ -33,7 +34,7 @@ def find_user_via_opportunity_id(opportunity_id):
     fcm_token = result['records'][0]['FCM_Token__c']
     name = result['records'][0]['Name']
     language = result['records'][0]['Preferred_Language__c']
-    return {"fcm_token": fcm_token, "name":name, "language":language, "close_date": close_date, "delivery_date":delivery_date}
+    return {"fcm_token": fcm_token, "name":name, "language":language, "close_date": close_date, "delivery_date":delivery_date, "delivery_time": delivery_time}
 
 def find_user_via_merchant_order_id(merchant_order_id):
     query = f"""
