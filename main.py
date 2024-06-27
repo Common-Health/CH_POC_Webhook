@@ -505,25 +505,37 @@ def check_payment_mpu():
             name = user_details['name']
             language = user_details['language']
             notification_id = generate_notification_id()
+            delivery_details= find_user_via_opportunity_id(opportunity_id)
+            delivery_date = delivery_details['delivery_date']
 
             update_payment_history(payment_history_id, merch_id, opportunity_id, method_name, provider_name, total_amount, transaction_id, status)
 
             if status.lower() == 'ap':
-                pay_status = f"Hi {name}, your payment was successful. Thank you! Transaction details are available in your account."
+                tag = "payment_success"
             elif status.lower() == 'de':
-                pay_status = f"Hi {name}, your payment via MPU was declined. Please check your details and try again. Contact support if you require assistance."
+                tag = "payment_declined"
             elif status.lower() == 'fa':
-                pay_status = f"Hi {name}, your payment attempt via MPU failed. Please check your details and try again. Contact support if you require assistance."
+                tag = "payment_failed"
             else:
-                pay_status = f"Hi {name}, your payment for medication is currently pending. We will inform you once we receive your payment. Thank you!"
+                tag = "payment_pending"
 
-            logging.info(f"Notification message: {pay_status}")
+            if not language:
+                language = "English"
+
+            notification = get_notification(language, tag)
+            if notification:
+                notif_message = notification['Message'].replace("{Name}", name)
+                if tag == "payment_pending":
+                    notif_message= notif_message.replace("{deliverySLADate}", delivery_date)
+                notif_title = notification['Title']
+
+            logging.info(f"Notification message: {notif_message}")
 
             message = messaging.Message(
                 token=fcm_token,
                 notification=messaging.Notification(
-                    title='Payment Update',
-                    body=pay_status
+                    title=notif_title,
+                    body=notif_message
                 ),
                 android=messaging.AndroidConfig(
                     priority='high'
@@ -539,8 +551,8 @@ def check_payment_mpu():
                     "orderId": opportunity_id,
                     "action": "redirect_to_orders",
                     "notification_id": notification_id,
-                    "title":'Payment Update',
-                    "body":pay_status
+                    "title":notif_title,
+                    "body":notif_message
                 }
             )
 
@@ -587,16 +599,27 @@ def check_payment_status():
             notification_id = generate_notification_id()
             update_payment_history(payment_history_id, merch_order_id,opportunity_id,method_name,provider_name,total_amount, transaction_id,status)
 
+
             if status.lower() == 'pay_success':
-                pay_status= f"Hi {name}, your payment was successful. Thank you! Transaction details are available in your account."
+                tag = "payment_success"
             else:
-                pay_status = f"Hi {name}, your payment attempt failed. Please check your details and try again. Contact support if you require assistance"
+                tag = "payment_failed"
+
+            if not language:
+                language = "English"
+
+            notification = get_notification(language, tag)
+            if notification:
+                notif_message = notification['Message'].replace("{Name}", name)
+                notif_title = notification['Title']
+
+            logging.info(f"Notification message: {notif_message}")
 
             message = messaging.Message(
                 token=fcm_token,
                 notification=messaging.Notification(
-                    title='Payment Update',
-                    body=pay_status
+                    title=notif_title,
+                    body=notif_message
                 ),
                 android=messaging.AndroidConfig(
                     priority='high'
@@ -612,8 +635,8 @@ def check_payment_status():
                     "orderId": opportunity_id,
                     "action": "redirect_to_orders",
                     "notification_id": notification_id,
-                    "title":'Payment Update',
-                    "body":pay_status
+                    "title":notif_title,
+                    "body":notif_message
                 }
             )
 
