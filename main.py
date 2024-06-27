@@ -701,10 +701,6 @@ def create_shopify_order():
 
         message = messaging.Message(
             token=fcm_token,
-            notification=messaging.Notification(
-                title=notif_title,
-                body=notif_message
-            ),
             android=messaging.AndroidConfig(
                 priority='high'
             ),
