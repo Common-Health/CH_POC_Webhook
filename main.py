@@ -185,6 +185,7 @@ def send_message():
                 body=message
             ),
             android=messaging.AndroidConfig(
+                ttl=2419200,
                 priority='high'
             ),
             apns=messaging.APNSConfig(
@@ -245,6 +246,7 @@ def send_message_phone_update():
                 body=message
             ),
             android=messaging.AndroidConfig(
+                ttl=2419200,
                 priority='high'
             ),
             apns=messaging.APNSConfig(
@@ -304,6 +306,7 @@ def send_message_refill():
                 body=notif_message
             ),
             android=messaging.AndroidConfig(
+                ttl=2419200,
                 priority='high'
             ),
             apns=messaging.APNSConfig(
@@ -363,6 +366,7 @@ def send_message_picked_up():
                 body=notif_message
             ),
             android=messaging.AndroidConfig(
+                ttl=2419200,
                 priority='high'
             ),
             apns=messaging.APNSConfig(
@@ -420,6 +424,7 @@ def send_message_delivered():
                 body=notif_message
             ),
             android=messaging.AndroidConfig(
+                ttl=2419200,
                 priority='high'
             ),
             apns=messaging.APNSConfig(
@@ -477,6 +482,7 @@ def send_message_deadline():
                 body=notif_message
             ),
             android=messaging.AndroidConfig(
+                ttl=2419200,
                 priority='high'
             ),
             apns=messaging.APNSConfig(
@@ -595,6 +601,7 @@ def check_payment_mpu():
                     body=notif_message
                 ),
                 android=messaging.AndroidConfig(
+                    ttl=2419200,
                     priority='high'
                 ),
                 apns=messaging.APNSConfig(
@@ -679,6 +686,7 @@ def check_payment_status():
                     body=notif_message
                 ),
                 android=messaging.AndroidConfig(
+                    ttl=2419200,
                     priority='high'
                 ),
                 apns=messaging.APNSConfig(
@@ -783,6 +791,7 @@ def create_shopify_order():
         message = messaging.Message(
             token=fcm_token,
             android=messaging.AndroidConfig(
+                ttl=2419200,
                 priority='high'
             ),
             apns=messaging.APNSConfig(
