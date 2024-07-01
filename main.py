@@ -13,6 +13,7 @@ import os
 import json
 import logging
 import sys
+import time
 import uuid
 import requests
 from flask import Flask, request, redirect, jsonify
@@ -258,9 +259,21 @@ def send_message_phone_update():
             ),
             data=data  # Attach the optional data dictionary
         )
-        logging.info(message)
-        response = send_fcm_notification(notification)
-        return jsonify(success=True, response=response), 200
+        max_retries = 3
+        for attempt in range(1, max_retries + 1):
+            try:
+                logging.info(f"Attempt {attempt}: Sending notification: {message}")
+                response = send_fcm_notification(notification)
+                return jsonify(success=True, response=response), 200
+            except Exception as e:
+                logging.error(f"Attempt {attempt}: Error sending notification: {str(e)}")
+                if attempt < max_retries:
+                    wait_time = 2 ** attempt  # Exponential backoff
+                    logging.info(f"Retrying after {wait_time} seconds...")
+                    time.sleep(wait_time)
+                else:
+                    logging.error(f"All retry attempts failed. Error: {str(e)}")
+                    return jsonify(error='Failed to send notification after retries'), 500
 
     except Exception as e:
         return jsonify(error=str(e)), 500
@@ -276,7 +289,6 @@ def send_message_refill():
         fcm_token = user_details['fcm_token']
         name = user_details['name']
         language = user_details['language']
-        close_date = user_details['close_date']
         delivery_date = user_details['delivery_date']
         data = received_data.get('data', {})  # Get the 'data' dictionary if present, otherwise an empty dict
 
@@ -318,11 +330,24 @@ def send_message_refill():
             ),
             data=data  # Attach the optional data dictionary
         )
-        logging.info(notif_message)
-        response = send_fcm_notification(notification)
-        return jsonify(success=True, response=response), 200
+        max_retries = 3
+        for attempt in range(1, max_retries + 1):
+            try:
+                logging.info(f"Attempt {attempt}: Sending notification: {notif_message}")
+                response = send_fcm_notification(notification)
+                return jsonify(success=True, response=response), 200
+            except Exception as e:
+                logging.error(f"Attempt {attempt}: Error sending notification: {str(e)}")
+                if attempt < max_retries:
+                    wait_time = 2 ** attempt  # Exponential backoff
+                    logging.info(f"Retrying after {wait_time} seconds...")
+                    time.sleep(wait_time)
+                else:
+                    logging.error(f"All retry attempts failed. Error: {str(e)}")
+                    return jsonify(error='Failed to send notification after retries'), 500
 
     except Exception as e:
+        logging.error(f"Error in refill: {str(e)}", exc_info=True)
         return jsonify(error=str(e)), 500
     
 @app.route('/api/send_fcm_message/picked_up', methods=['POST'])
@@ -378,11 +403,24 @@ def send_message_picked_up():
             ),
             data=data  # Attach the optional data dictionary
         )
-        logging.info(notif_message)
-        response = send_fcm_notification(notification)
-        return jsonify(success=True, response=response), 200
+        max_retries = 3
+        for attempt in range(1, max_retries + 1):
+            try:
+                logging.info(f"Attempt {attempt}: Sending notification: {notif_message}")
+                response = send_fcm_notification(notification)
+                return jsonify(success=True, response=response), 200
+            except Exception as e:
+                logging.error(f"Attempt {attempt}: Error sending notification: {str(e)}")
+                if attempt < max_retries:
+                    wait_time = 2 ** attempt  # Exponential backoff
+                    logging.info(f"Retrying after {wait_time} seconds...")
+                    time.sleep(wait_time)
+                else:
+                    logging.error(f"All retry attempts failed. Error: {str(e)}")
+                    return jsonify(error='Failed to send notification after retries'), 500
 
     except Exception as e:
+        logging.error(f"Error in picked_up: {str(e)}", exc_info=True)
         return jsonify(error=str(e)), 500
     
 @app.route('/api/send_fcm_message/delivered', methods=['POST'])
@@ -436,11 +474,24 @@ def send_message_delivered():
             ),
             data=data  # Attach the optional data dictionary
         )
-        logging.info(notif_message)
-        response = send_fcm_notification(notification)
-        return jsonify(success=True, response=response), 200
+        max_retries = 3
+        for attempt in range(1, max_retries + 1):
+            try:
+                logging.info(f"Attempt {attempt}: Sending notification: {notif_message}")
+                response = send_fcm_notification(notification)
+                return jsonify(success=True, response=response), 200
+            except Exception as e:
+                logging.error(f"Attempt {attempt}: Error sending notification: {str(e)}")
+                if attempt < max_retries:
+                    wait_time = 2 ** attempt  # Exponential backoff
+                    logging.info(f"Retrying after {wait_time} seconds...")
+                    time.sleep(wait_time)
+                else:
+                    logging.error(f"All retry attempts failed. Error: {str(e)}")
+                    return jsonify(error='Failed to send notification after retries'), 500
 
     except Exception as e:
+        logging.error(f"Error in delivered: {str(e)}", exc_info=True)
         return jsonify(error=str(e)), 500
 
 @app.route('/api/send_fcm_message/deadline', methods=['POST'])
@@ -494,11 +545,24 @@ def send_message_deadline():
             ),
             data=data  # Attach the optional data dictionary
         )
-        logging.info(notif_message)
-        response = send_fcm_notification(notification)
-        return jsonify(success=True, response=response), 200
+        max_retries = 3
+        for attempt in range(1, max_retries + 1):
+            try:
+                logging.info(f"Attempt {attempt}: Sending notification: {notif_message}")
+                response = send_fcm_notification(notification)
+                return jsonify(success=True, response=response), 200
+            except Exception as e:
+                logging.error(f"Attempt {attempt}: Error sending notification: {str(e)}")
+                if attempt < max_retries:
+                    wait_time = 2 ** attempt  # Exponential backoff
+                    logging.info(f"Retrying after {wait_time} seconds...")
+                    time.sleep(wait_time)
+                else:
+                    logging.error(f"All retry attempts failed. Error: {str(e)}")
+                    return jsonify(error='Failed to send notification after retries'), 500
 
     except Exception as e:
+        logging.error(f"Error in deadline: {str(e)}", exc_info=True)
         return jsonify(error=str(e)), 500
 
 def convert_padded_amount(padded_amount):
@@ -620,11 +684,19 @@ def check_payment_mpu():
                 }
             )
 
-            try:
-                send_fcm_notification(message)
-                logging.info("FCM notification sent successfully")
-            except Exception as e:
-                logging.error(f"Failed to send FCM notification: {str(e)}", exc_info=True)
+            max_retries = 3
+            for attempt in range(1, max_retries + 1):
+                try:
+                    logging.info(f"Attempt {attempt}: Sending notification: {notif_message}")
+                    response = send_fcm_notification(notification)
+                except Exception as e:
+                    logging.error(f"Attempt {attempt}: Error sending notification: {str(e)}")
+                    if attempt < max_retries:
+                        wait_time = 2 ** attempt  # Exponential backoff
+                        logging.info(f"Retrying after {wait_time} seconds...")
+                        time.sleep(wait_time)
+                    else:
+                        logging.error(f"All retry attempts failed. Error: {str(e)}")
 
             return "success"
         except Exception as e:
@@ -705,10 +777,20 @@ def check_payment_status():
                 }
             )
 
-            try:
-                send_fcm_notification(message)
-            except Exception as e:
-                print(f"Failed to send FCM notification: {str(e)}")
+            max_retries = 3
+            for attempt in range(1, max_retries + 1):
+                try:
+                    logging.info(f"Attempt {attempt}: Sending notification: {notif_message}")
+                    response = send_fcm_notification(notification)
+                except Exception as e:
+                    logging.error(f"Attempt {attempt}: Error sending notification: {str(e)}")
+                    if attempt < max_retries:
+                        wait_time = 2 ** attempt  # Exponential backoff
+                        logging.info(f"Retrying after {wait_time} seconds...")
+                        time.sleep(wait_time)
+                    else:
+                        logging.error(f"All retry attempts failed. Error: {str(e)}")
+                        
             return "success"
         except Exception as e:
             return jsonify({"error": str(e)}), 500
