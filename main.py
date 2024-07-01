@@ -688,7 +688,7 @@ def check_payment_mpu():
             for attempt in range(1, max_retries + 1):
                 try:
                     logging.info(f"Attempt {attempt}: Sending notification: {notif_message}")
-                    response = send_fcm_notification(notification)
+                    response = send_fcm_notification(message)
                 except Exception as e:
                     logging.error(f"Attempt {attempt}: Error sending notification: {str(e)}")
                     if attempt < max_retries:
@@ -781,7 +781,7 @@ def check_payment_status():
             for attempt in range(1, max_retries + 1):
                 try:
                     logging.info(f"Attempt {attempt}: Sending notification: {notif_message}")
-                    response = send_fcm_notification(notification)
+                    response = send_fcm_notification(message)
                 except Exception as e:
                     logging.error(f"Attempt {attempt}: Error sending notification: {str(e)}")
                     if attempt < max_retries:
