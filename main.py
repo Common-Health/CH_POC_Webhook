@@ -689,6 +689,7 @@ def check_payment_mpu():
                 try:
                     logging.info(f"Attempt {attempt}: Sending notification: {notif_message}")
                     response = send_fcm_notification(message)
+                    return "success"
                 except Exception as e:
                     logging.error(f"Attempt {attempt}: Error sending notification: {str(e)}")
                     if attempt < max_retries:
@@ -697,8 +698,8 @@ def check_payment_mpu():
                         time.sleep(wait_time)
                     else:
                         logging.error(f"All retry attempts failed. Error: {str(e)}")
+                        return "success"
 
-            return "success"
         except Exception as e:
             logging.error(f"Error in check_payment_mpu: {str(e)}", exc_info=True)
             return jsonify({"error": str(e)}), 500
@@ -782,6 +783,7 @@ def check_payment_status():
                 try:
                     logging.info(f"Attempt {attempt}: Sending notification: {notif_message}")
                     response = send_fcm_notification(message)
+                    return "success"
                 except Exception as e:
                     logging.error(f"Attempt {attempt}: Error sending notification: {str(e)}")
                     if attempt < max_retries:
@@ -790,8 +792,8 @@ def check_payment_status():
                         time.sleep(wait_time)
                     else:
                         logging.error(f"All retry attempts failed. Error: {str(e)}")
-                        
-            return "success"
+                        return "success"
+
         except Exception as e:
             return jsonify({"error": str(e)}), 500
     else:
