@@ -313,10 +313,6 @@ def send_message_refill():
         
         notification = messaging.Message(
             token=fcm_token,
-            notification=messaging.Notification(
-                title=notif_title,
-                body=notif_message
-            ),
             android=messaging.AndroidConfig(
                 ttl=2419200,
                 priority='high'
