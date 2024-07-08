@@ -829,10 +829,10 @@ def handle_product_update():
         updates = []
         # Process each variant
         for variant in json_data['variants']:
-            variant_id = str(variant['id'])
+            variant_id = str(variant['product_id'])
             price = variant['price']
             inventory_quantity = variant['inventory_quantity']
-            print(f"Variant ID: {variant_id}, Price: {price}, Inventory: {inventory_quantity}")
+            print(f"Product ID: {variant_id}, Price: {price}, Inventory: {inventory_quantity}")
             
             # Update Salesforce for each variant
             update_success = update_salesforce(variant_id, price, inventory_quantity)
