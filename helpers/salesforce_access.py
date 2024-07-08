@@ -11,7 +11,7 @@ password = os.getenv('SF_PASSWORD')
 security_token = os.getenv('SF_SECURITY_TOKEN')
 access_key = os.getenv('ACCESS_KEY')
 
-sf = Salesforce(username=username, password=password, security_token=security_token, domain='test')
+sf = Salesforce(username=username, password=password, security_token=security_token)
 BASEURL = f"https://{os.getenv('SHOP_URL')}/admin/api/{os.getenv('API_VERSION')}"
 
 def find_user_via_opportunity_id(opportunity_id):
