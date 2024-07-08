@@ -74,7 +74,7 @@ def initialize_firebase(credentials_path, db_url, name=None):
             print(f'Initialized default app with DB URL: {db_url}')
 
 # Initialize with development credentials
-initialize_firebase(dev_credentials, dev_db_url)
+initialize_firebase(prod_credentials, prod_db_url)
 CUSTOM_HEADER = os.getenv('CUSTOM_HEADER')
 SECRET_KEY = os.getenv('SECRET_KEY')
 CLOUD_API_KEY = os.getenv('CLOUD_API_KEY')
