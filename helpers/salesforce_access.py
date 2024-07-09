@@ -15,8 +15,7 @@ access_key = os.getenv('ACCESS_KEY')
 
 sf = Salesforce(username=username, password=password, security_token=security_token)
 BASEURL = f"https://{os.getenv('SHOP_URL')}/admin/api/{os.getenv('API_VERSION')}"
-
-logger = logging.basicConfig(
+logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s %(levelname)s: %(message)s',
     handlers=[
@@ -164,7 +163,7 @@ def get_variant_id_by_product_id(product_id):
 
 def create_draft_order(opportunity_id):
     try:
-        logger.info(f"Starting to create draft order for Opportunity ID: {opportunity_id}")
+        logging.info(f"Starting to create draft order for Opportunity ID: {opportunity_id}")
 
         # Query Opportunity Line Items for the given Opportunity ID
         query = f"""
@@ -173,11 +172,11 @@ def create_draft_order(opportunity_id):
         WHERE Id = '{opportunity_id}'
         """
         result = sf.query(query)
-        logger.info("Queried Opportunity Line Items")
+        logging.info("Queried Opportunity Line Items")
 
         salesforce_items = result['records']
         if not salesforce_items:
-            logger.error("No opportunity found for the given Opportunity ID")
+            logging.error("No opportunity found for the given Opportunity ID")
             return jsonify({'error': 'No opportunity found for the given Opportunity ID'}), 404
         
         subscription_id = salesforce_items[0]['Subscription__r']['Id']
@@ -191,10 +190,10 @@ def create_draft_order(opportunity_id):
         """
         subscription_result = sf.query(subscription_query)
         line_items = subscription_result['records']
-        logger.info("Queried Subscription Line Items")
+        logging.info("Queried Subscription Line Items")
 
         if not line_items:
-            logger.error("No line items found for the given Subscription ID")
+            logging.error("No line items found for the given Subscription ID")
             return jsonify({'error': 'No line items found for the given Subscription ID'}), 404
 
         # Prepare Shopify draft order payload
@@ -212,7 +211,7 @@ def create_draft_order(opportunity_id):
                     })
 
         if not order_line_items:
-            logger.error("No valid line items found to create draft order")
+            logging.error("No valid line items found to create draft order")
             return jsonify({'error': 'No valid line items found to create draft order'}), 400
 
         draft_order_data = {
@@ -228,10 +227,10 @@ def create_draft_order(opportunity_id):
         shopify_url = BASEURL + "/draft_orders.json"
         response = requests.post(shopify_url, json=draft_order_data, headers={"X-Shopify-Access-Token": access_key})
         response_data = response.json()
-        logger.info("Sent request to Shopify API to create draft order")
+        logging.info("Sent request to Shopify API to create draft order")
 
         if response.status_code != 201:
-            logger.error(f"Shopify API error: {response_data}")
+            logging.error(f"Shopify API error: {response_data}")
             raise ValueError(f"Shopify API error: {response_data}")
 
         shopify_order_number = response_data['draft_order']['name']
@@ -243,17 +242,17 @@ def create_draft_order(opportunity_id):
             'Shopify_Order_Id__c': shopify_draft_order_id
         }
         sf.Opportunity.update(opportunity_id, update_data)
-        logger.info("Updated the Opportunity record in Salesforce")
+        logging.info("Updated the Opportunity record in Salesforce")
 
         return jsonify(response_data), 201
 
     except Exception as e:
-        logger.error(f"Error occurred: {str(e)}")
+        logging.error(f"Error occurred: {str(e)}")
         return jsonify({'error': str(e)}), 500
     
 def complete_draft_order(opportunity_id):
     try:
-        logger.info(f"Starting to complete draft order for Opportunity ID: {opportunity_id}")
+        logging.info(f"Starting to complete draft order for Opportunity ID: {opportunity_id}")
 
         query = f"""
         SELECT Shopify_Order_Number__c, Shopify_Order_Id__c, Account.Shopify_Customer_ID__c
@@ -261,10 +260,10 @@ def complete_draft_order(opportunity_id):
         WHERE Id = '{opportunity_id}'
         """
         result = sf.query(query)
-        logger.info("Queried Opportunity for Shopify Order details")
+        logging.info("Queried Opportunity for Shopify Order details")
 
         if not result['records']:
-            logger.error("Opportunity Not Found!")
+            logging.error("Opportunity Not Found!")
             raise ValueError("Opportunity Not Found!")
         
         opportunity = result['records'][0]
@@ -283,18 +282,18 @@ def complete_draft_order(opportunity_id):
                 }
             }
             response = requests.put(update_draft_order_url, json=update_data, headers={"X-Shopify-Access-Token": access_key})
-            logger.info("Added customer to the draft order in Shopify")
+            logging.info("Added customer to the draft order in Shopify")
             
             if response.status_code != 200:
-                logger.error('Failed to update draft order with customer')
+                logging.error('Failed to update draft order with customer')
                 raise ValueError('Failed to update draft order with customer')
         
         complete_order_url = f"{BASEURL}/draft_orders/{shopify_order_id}/complete.json?payment_pending=true"
         response = requests.put(complete_order_url, headers={"X-Shopify-Access-Token": access_key})
-        logger.info("Sent request to Shopify API to complete draft order")
+        logging.info("Sent request to Shopify API to complete draft order")
 
         if response.status_code != 200:
-            logger.error('Failed to complete draft order')
+            logging.error('Failed to complete draft order')
             return ValueError('Failed to complete draft order')
         
         response_data = response.json()
@@ -304,18 +303,18 @@ def complete_draft_order(opportunity_id):
         shopify_response = requests.get(find_shopify_order_url, headers={"X-Shopify-Access-Token": access_key})
         shopify_response_data = shopify_response.json()
         new_order_name = shopify_response_data['order']['name']
-        logger.info("Retrieved new order name from Shopify")
+        logging.info("Retrieved new order name from Shopify")
 
         update_data = {
             'Shopify_Order_Number__c': new_order_name,
             'Shopify_Order_Id__c': new_order_id
         }
         sf.Opportunity.update(opportunity_id, update_data)
-        logger.info("Updated the Opportunity record in Salesforce with new order details")
+        logging.info("Updated the Opportunity record in Salesforce with new order details")
 
         return jsonify(shopify_response_data)
     except Exception as e:
-        logger.error(f"Error occurred: {str(e)}")
+        logging.error(f"Error occurred: {str(e)}")
         raise ValueError(str(e))
     
 def update_salesforce_account(shopify_customer_id, phone):
