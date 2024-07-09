@@ -131,6 +131,27 @@ def update_salesforce(shopify_id, price, total_inventory):
         else:
             raise  # Re-raise the exception to trigger retry
     
+def get_variant_id_by_product_id(product_id):
+    try:
+        # Query Shopify API to get variants for the given product ID
+        shopify_url = BASEURL + f"/products/{product_id}.json"
+        response = requests.get(shopify_url, headers={"X-Shopify-Access-Token": access_key})
+        response_data = response.json()
+
+        if response.status_code != 200:
+            raise ValueError(f"Shopify API error: {response_data}")
+
+        # Assuming the first variant is the one we need
+        variants = response_data['product']['variants']
+        if not variants:
+            return None
+        
+        return variants[0]['id']  # Returning the first variant ID
+
+    except Exception as e:
+        raise ValueError(f"Error retrieving variant ID for product ID {product_id}: {str(e)}")
+
+
 def create_draft_order(opportunity_id):
     try:
         # Query Opportunity Line Items for the given Opportunity ID
@@ -160,13 +181,18 @@ def create_draft_order(opportunity_id):
             return jsonify({'error': 'No line items found for the given Subscription ID'}), 404
 
         # Prepare Shopify draft order payload
-        order_line_items = [
-            {
-                "variant_id": item.get('Inventory__r', {}).get('Id__c'),
-                "quantity": int(item.get('Quantity_Formula__c', 0))
-            }
-            for item in line_items if item.get('Inventory__r', {}).get('Id__c') and item.get('Quantity_Formula__c')
-        ]
+        order_line_items = []
+        for item in line_items:
+            product_id = item.get('Inventory__r', {}).get('Id__c')
+            quantity = item.get('Quantity_Formula__c')
+
+            if product_id and quantity:
+                variant_id = get_variant_id_by_product_id(product_id)
+                if variant_id:
+                    order_line_items.append({
+                        "variant_id": variant_id,
+                        "quantity": int(quantity)
+                    })
 
         if not order_line_items:
             return jsonify({'error': 'No valid line items found to create draft order'}), 400
