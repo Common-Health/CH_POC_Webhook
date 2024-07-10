@@ -961,13 +961,13 @@ def shopify_webhook():
 
         # Iterate over each line item from the Shopify order
         for line_item in line_items:
-            new_variant_id = line_item['variant_id']
+            new_product_id = line_item['product_id']  # Changed from variant_id to product_id
             quantity = line_item['quantity']
             
-            # Find Inventory Item using Variant ID and get price
-            inventory_item = find_inventory_by_variant_id(new_variant_id)
+            # Find Inventory Item using Product ID and get price
+            inventory_item = find_inventory_by_variant_id(new_product_id)  # Updated function call
             if not inventory_item:
-                logging.error(f"Inventory item not found for Variant ID: {new_variant_id}")
+                logging.error(f"Inventory item not found for Product ID: {new_product_id}")
                 continue
             
             inventory_id = inventory_item['Id']
